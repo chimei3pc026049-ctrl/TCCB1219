@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>愛車支出管理</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --paper:#f6f4ef; --surface:#ffffff; --surface2:#fbfaf7;
+  --ink:#1a1d27; --ink2:#5a6172; --ink3:#9aa0ad; --ink4:#c4c8d0;
+  --line:#ebe8e1; --line2:#f2efe9;
+  --indigo:#4f46e5; --indigo-d:#4338ca; --indigo-soft:#eef0fe;
+  --teal:#0d9488; --teal-soft:#e6f5f3;
+  --amber:#b45309; --amber-soft:#fbf1e3; --amber-dot:#d97706;
+  --rust:#c0392b; --rust-soft:#fbecea;
+  --emerald:#0f766e; --emerald-soft:#e7f4f1; --green-dot:#059669;
+  --slate:#64748b;
+  --shadow:0 1px 2px rgba(26,29,39,.04), 0 10px 30px rgba(26,29,39,.05);
+  --shadow-sm:0 1px 2px rgba(26,29,39,.05);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans TC',sans-serif;color:var(--ink);background:var(--paper);min-height:100vh;
+  background-image:radial-gradient(1100px 600px at 78% -8%,rgba(79,70,229,.05),transparent),radial-gradient(800px 500px at 0% 0%,rgba(13,148,136,.04),transparent);}
+.mono{font-family:'Space Mono',monospace;font-feature-settings:"tnum"}
+.serif{font-family:'Noto Serif TC',serif}
+.wrap{max-width:1120px;margin:0 auto;padding:24px 18px 70px}
+
+/* header */
+header{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;padding:8px 0 22px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:14px}
+.logo{width:46px;height:46px;border-radius:13px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px}
+.brand h1{font-family:'Noto Serif TC',serif;font-size:23px;font-weight:900;letter-spacing:.5px;line-height:1.1}
+.brand p{font-size:11.5px;color:var(--ink3);margin-top:3px;letter-spacing:.3px}
+.odo{text-align:right}
+.odo .lbl{font-size:10px;color:var(--ink3);letter-spacing:1.5px;text-transform:uppercase}
+.odo .val{font-size:30px;font-weight:700;color:var(--ink);line-height:1.1;margin-top:2px}
+.odo .val em{font-size:13px;color:var(--ink3);font-style:normal;font-family:'Noto Sans TC'}
+.demo-bar{background:var(--amber-soft);border:1px solid #f0dcb8;color:var(--amber);font-size:12.5px;padding:9px 15px;border-radius:11px;margin:16px 0 0;display:none}
+
+/* tabs */
+.tabs{display:flex;gap:4px;margin:20px 0 22px;overflow-x:auto;padding-bottom:2px}
+.tab{padding:9px 17px;border-radius:10px;font-size:13.5px;font-weight:500;color:var(--ink2);cursor:pointer;white-space:nowrap;border:1px solid transparent;background:none;transition:.16s;font-family:inherit}
+.tab.active{background:var(--surface);color:var(--indigo);font-weight:700;box-shadow:var(--shadow-sm);border-color:var(--line)}
+.tab:hover:not(.active){color:var(--ink);background:rgba(0,0,0,.025)}
+
+.page{display:none}
+.page.active{display:block;animation:fade .3s ease}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* layout */
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,1fr)} .g3{grid-template-columns:repeat(3,1fr)} .g2{grid-template-columns:repeat(2,1fr)}
+@media(max-width:760px){.g4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:1fr}.g2{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-sm)}
+.card.pad{padding:20px}
+.card.pad-lg{padding:24px}
+
+/* stat */
+.stat{padding:18px 18px 16px;position:relative;overflow:hidden}
+.stat::before{content:'';position:absolute;left:0;top:16px;bottom:16px;width:3px;border-radius:3px;background:var(--ink4)}
+.stat.i::before{background:var(--indigo)} .stat.t::before{background:var(--teal)} .stat.a::before{background:var(--amber-dot)} .stat.e::before{background:var(--emerald)} .stat.s::before{background:var(--slate)}
+.stat .lbl{font-size:11px;color:var(--ink3);letter-spacing:.5px;padding-left:11px}
+.stat .num{font-size:25px;font-weight:700;margin-top:7px;padding-left:11px;line-height:1.05}
+.stat .num small{font-size:13px;color:var(--ink3);font-weight:400}
+.stat .sub{font-size:11px;color:var(--ink3);margin-top:5px;padding-left:11px}
+
+.sect{font-family:'Noto Serif TC',serif;font-size:15.5px;font-weight:700;margin:26px 0 13px;display:flex;align-items:center;gap:9px}
+.sect .ln{flex:1;height:1px;background:var(--line)}
+.sub-note{font-size:11.5px;color:var(--ink3);margin:-6px 0 14px}
+
+/* forms */
+.form-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:760px){.form-grid{grid-template-columns:repeat(2,1fr)}}
+.field{display:flex;flex-direction:column;gap:6px}
+.field.full{grid-column:1/-1}
+label{font-size:11.5px;color:var(--ink2);font-weight:500}
+input,select{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--ink);font-size:14px;font-family:inherit;width:100%;transition:.15s}
+input:focus,select:focus{outline:none;border-color:var(--indigo);background:#fff;box-shadow:0 0 0 3px var(--indigo-soft)}
+.btn{background:var(--indigo);color:#fff;border:none;border-radius:11px;padding:11px 22px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s}
+.btn:hover{background:var(--indigo-d);transform:translateY(-1px)}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.ghost:hover{background:var(--surface2);transform:translateY(-1px)}
+.btn.sm{padding:7px 13px;font-size:12.5px}
+.btn-row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.form-title{font-family:'Noto Serif TC',serif;font-size:15px;font-weight:700;margin-bottom:15px;display:flex;align-items:center;gap:8px}
+
+/* table */
+.tbl-wrap{overflow-x:auto;border-radius:14px;border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow-sm)}
+table.data{width:100%;border-collapse:collapse;font-size:13px;min-width:540px}
+table.data th{background:var(--surface2);color:var(--ink3);font-weight:600;font-size:11px;letter-spacing:.4px;text-align:left;padding:12px 14px;white-space:nowrap;border-bottom:1px solid var(--line)}
+table.data td{padding:12px 14px;border-top:1px solid var(--line2);white-space:nowrap;color:var(--ink)}
+table.data td.mono{color:var(--ink)}
+table.data tr:hover td{background:var(--surface2)}
+.del{color:var(--rust);cursor:pointer;font-size:12px;opacity:.65}
+.del:hover{opacity:1;text-decoration:underline}
+.empty{text-align:center;color:var(--ink3);padding:34px;font-size:13px}
+
+/* reminders */
+.rem{display:flex;align-items:center;gap:12px;padding:13px 15px;border-radius:12px;border:1px solid var(--line);margin-bottom:9px;background:var(--surface)}
+.rem:last-child{margin-bottom:0}
+.rem .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.rem .nm{font-weight:600;font-size:14px;color:var(--ink)}
+.rem .ds{font-size:12.5px;color:var(--ink2);margin-left:auto;text-align:right;white-space:nowrap}
+.tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;margin-left:9px;vertical-align:middle}
+.tag.over{background:var(--rust-soft);color:var(--rust)}
+.tag.due{background:var(--amber-soft);color:var(--amber)}
+.tag.ok{background:var(--emerald-soft);color:var(--emerald)}
+.tag.unk{background:#f1f0ec;color:var(--ink3)}
+.all-ok{text-align:center;color:var(--emerald);padding:18px;font-size:14px;font-weight:500}
+
+.status-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+@media(max-width:760px){.status-grid{grid-template-columns:repeat(2,1fr)}}
+.ms{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:13px 15px;border-left:4px solid var(--ink4);box-shadow:var(--shadow-sm)}
+.ms.over{border-left-color:var(--rust)} .ms.due{border-left-color:var(--amber-dot)} .ms.ok{border-left-color:var(--emerald)}
+.ms .t{font-size:13.5px;font-weight:600;color:var(--ink)} .ms .d{font-size:11.5px;color:var(--ink2);margin-top:5px}
+
+/* analysis spec table */
+.spec{width:100%;border-collapse:collapse;font-size:13px}
+.spec td{padding:11px 4px;border-bottom:1px solid var(--line2)}
+.spec td:first-child{color:var(--ink2)}
+.spec td:last-child{text-align:right;font-weight:700;color:var(--ink)}
+.spec tr:last-child td{border-bottom:none}
+
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(90px);background:var(--ink);color:#fff;padding:13px 26px;border-radius:13px;font-size:14px;z-index:99;transition:.32s cubic-bezier(.2,.8,.2,1);box-shadow:0 12px 34px rgba(0,0,0,.22)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+canvas{max-height:300px}
+.chart-h{font-family:'Noto Serif TC',serif;font-size:14px;font-weight:700;margin-bottom:4px}
+.chart-sub{font-size:11px;color:var(--ink3);margin-bottom:14px}
+.loading{text-align:center;padding:70px;color:var(--ink3)}
+.spin{display:inline-block;width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--indigo);border-radius:50%;animation:r 1s linear infinite}
+@keyframes r{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="logo">🚗</div>
+      <div><h1 id="carName">愛車支出管理</h1><p>FUEL · MAINTENANCE · INSURANCE · MODS · ANALYTICS</p></div>
+    </div>
+    <div class="odo">
+      <div class="lbl">Odometer 目前里程</div>
+      <div class="val mono"><span id="odoVal">0</span> <em>km</em></div>
+    </div>
+  </header>
+  <div class="demo-bar" id="demoBar">示範模式：目前顯示範例資料。部署後在 index.html 填入 API 網址，即切換為真實資料。</div>
+
+  <div class="tabs">
+    <button class="tab active" data-p="dash">總覽</button>
+    <button class="tab" data-p="ana">分析</button>
+    <button class="tab" data-p="fuel">油費</button>
+    <button class="tab" data-p="maint">保養</button>
+    <button class="tab" data-p="cycle">保養週期</button>
+    <button class="tab" data-p="ins">保險</button>
+    <button class="tab" data-p="mod">改裝</button>
+    <button class="tab" data-p="set">設定</button>
+  </div>
+
+  <div id="loader" class="loading"><div class="spin"></div><p style="margin-top:14px">載入中…</p></div>
+  <div id="app" style="display:none">
+
+  <!-- 總覽 -->
+  <div class="page active" id="page-dash">
+    <div class="grid g4">
+      <div class="card stat i"><div class="lbl">本月支出</div><div class="num mono">$<span id="sMonth">0</span></div><div class="sub">油費＋保養＋改裝</div></div>
+      <div class="card stat s"><div class="lbl">今年累計</div><div class="num mono">$<span id="sYear">0</span></div><div class="sub">含保費</div></div>
+      <div class="card stat t"><div class="lbl">平均油耗</div><div class="num mono"><span id="sKpl">--</span> <small>km/L</small></div><div class="sub">近期平均</div></div>
+      <div class="card stat a"><div class="lbl">待處理提醒</div><div class="num mono"><span id="sRem">0</span> <small>項</small></div><div class="sub">保養＋保險到期</div></div>
+    </div>
+    <div class="sect">到期提醒<span class="ln"></span></div>
+    <div class="card pad" id="remBox"></div>
+    <div class="grid g2" style="margin-top:20px">
+      <div class="card pad-lg"><div class="chart-h">近 6 個月支出</div><div class="chart-sub">依類別堆疊（元）</div><canvas id="chMonth"></canvas></div>
+      <div class="card pad-lg"><div class="chart-h">支出分類占比</div><div class="chart-sub">今年累計</div><canvas id="chPie"></canvas></div>
+    </div>
+  </div>
+
+  <!-- 分析 -->
+  <div class="page" id="page-ana">
+    <div class="grid g4">
+      <div class="card stat i"><div class="lbl">月均行駛</div><div class="num mono"><span id="aMonthKm">--</span> <small>km</small></div><div class="sub">每月平均公里數</div></div>
+      <div class="card stat i"><div class="lbl">日均行駛</div><div class="num mono"><span id="aDayKm">--</span> <small>km</small></div><div class="sub">每日平均</div></div>
+      <div class="card stat t"><div class="lbl">平均油耗</div><div class="num mono"><span id="aKpl">--</span> <small>km/L</small></div><div class="sub" id="aKplRange">最佳 / 最差</div></div>
+      <div class="card stat a"><div class="lbl">平均油價</div><div class="num mono">$<span id="aPrice">--</span> <small>/L</small></div><div class="sub">每公升加權平均</div></div>
+      <div class="card stat e"><div class="lbl">每公里油費</div><div class="num mono">$<span id="aFuelKm">--</span></div><div class="sub">油費 ÷ 行駛里程</div></div>
+      <div class="card stat e"><div class="lbl">每公里總成本</div><div class="num mono">$<span id="aTotalKm">--</span></div><div class="sub">含保養改裝保險</div></div>
+      <div class="card stat s"><div class="lbl">加油頻率</div><div class="num mono"><span id="aFreq">--</span> <small>天/次</small></div><div class="sub">平均間隔</div></div>
+      <div class="card stat s"><div class="lbl">累計行駛</div><div class="num mono"><span id="aTotalKm2">--</span> <small>km</small></div><div class="sub">紀錄區間</div></div>
+    </div>
+
+    <div class="sect">每月行駛公里數<span class="ln"></span></div>
+    <p class="sub-note">由各筆里程紀錄（加油／保養／改裝）的差值推估，可看出每月使用強度。</p>
+    <div class="card pad-lg"><canvas id="chKm"></canvas></div>
+
+    <div class="grid g2" style="margin-top:20px">
+      <div class="card pad-lg"><div class="chart-h">油耗趨勢</div><div class="chart-sub">每次加油 km/L，虛線為平均</div><canvas id="chKpl"></canvas></div>
+      <div class="card pad-lg"><div class="chart-h">油價趨勢</div><div class="chart-sub">每次加油單價（元/L）</div><canvas id="chPrice"></canvas></div>
+    </div>
+    <div class="grid g2" style="margin-top:20px">
+      <div class="card pad-lg"><div class="chart-h">每月支出趨勢</div><div class="chart-sub">近 12 個月，依類別堆疊</div><canvas id="chMonth12"></canvas></div>
+      <div class="card pad-lg"><div class="chart-h">每公里成本趨勢</div><div class="chart-sub">每月油費 ÷ 當月行駛里程</div><canvas id="chCostKm"></canvas></div>
+    </div>
+
+    <div class="sect">統計明細<span class="ln"></span></div>
+    <div class="grid g3">
+      <div class="card pad-lg">
+        <div class="chart-h" style="margin-bottom:12px">⛽ 油耗 · 加油</div>
+        <table class="spec" id="specFuel"></table>
+      </div>
+      <div class="card pad-lg">
+        <div class="chart-h" style="margin-bottom:12px">🛣️ 里程</div>
+        <table class="spec" id="specMile"></table>
+      </div>
+      <div class="card pad-lg">
+        <div class="chart-h" style="margin-bottom:12px">💰 成本結構</div>
+        <table class="spec" id="specCost"></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 油費 -->
+  <div class="page" id="page-fuel">
+    <div class="card pad-lg">
+      <div class="form-title">⛽ 新增加油紀錄</div>
+      <div class="form-grid">
+        <div class="field"><label>日期</label><input type="date" id="f_date"></div>
+        <div class="field"><label>里程 (km)</label><input type="number" id="f_mileage" placeholder="目前總里程"></div>
+        <div class="field"><label>加油量 (公升)</label><input type="number" step="0.01" id="f_liter" placeholder="例 38.5"></div>
+        <div class="field"><label>金額 (元)</label><input type="number" id="f_amount" placeholder="例 1200"></div>
+        <div class="field"><label>加油站</label><input id="f_station" placeholder="例 中油 / 台塑"></div>
+        <div class="field"><label>油號</label><select id="f_octane"><option value="92">92</option><option value="95" selected>95</option><option value="98">98</option><option value="柴油">柴油</option></select></div>
+        <div class="field full"><label>備註</label><input id="f_note" placeholder="選填"></div>
+      </div>
+      <div class="btn-row"><button class="btn" onclick="addFuel()">新增紀錄</button></div>
+    </div>
+    <div class="sect">加油紀錄<span class="ln"></span></div>
+    <div class="tbl-wrap"><table class="data"><thead><tr><th>日期</th><th>里程</th><th>公升</th><th>金額</th><th>單價</th><th>本次油耗</th><th>油站</th><th>油號</th><th></th></tr></thead><tbody id="fuelBody"></tbody></table></div>
+  </div>
+
+  <!-- 保養 -->
+  <div class="page" id="page-maint">
+    <div class="card pad-lg">
+      <div class="form-title">🔧 新增保養紀錄</div>
+      <div class="form-grid">
+        <div class="field"><label>日期</label><input type="date" id="m_date"></div>
+        <div class="field"><label>里程 (km)</label><input type="number" id="m_mileage"></div>
+        <div class="field"><label>項目</label><select id="m_item"></select></div>
+        <div class="field"><label>費用 (元)</label><input type="number" id="m_cost"></div>
+        <div class="field"><label>店家</label><input id="m_shop" placeholder="選填"></div>
+        <div class="field full"><label>備註</label><input id="m_note" placeholder="選填"></div>
+      </div>
+      <div class="btn-row"><button class="btn" onclick="addMaint()">新增紀錄</button></div>
+    </div>
+    <div class="sect">各項目保養狀態<span class="ln"></span></div>
+    <div class="status-grid" id="maintStatus"></div>
+    <div class="sect">保養紀錄<span class="ln"></span></div>
+    <div class="tbl-wrap"><table class="data"><thead><tr><th>日期</th><th>里程</th><th>項目</th><th>費用</th><th>店家</th><th>備註</th><th></th></tr></thead><tbody id="maintBody"></tbody></table></div>
+  </div>
+
+  <!-- 保養週期 -->
+  <div class="page" id="page-cycle">
+    <div class="card pad-lg">
+      <div class="form-title">🔁 保養週期設定</div>
+      <p class="sub-note" style="margin-top:0">自訂每個項目的更換週期。系統會以「里程」或「時間」任一先到達者判斷該不該換；里程或月份填 0 表示不採計該條件。修改後請按「儲存週期」。</p>
+      <div class="tbl-wrap"><table class="data"><thead><tr><th>項目</th><th>里程週期 (km)</th><th>月份週期</th><th>啟用</th><th></th></tr></thead><tbody id="cycleBody"></tbody></table></div>
+      <div class="btn-row"><button class="btn ghost sm" onclick="addCycleRow()">＋ 新增項目</button><button class="btn" onclick="saveCycles()">儲存週期</button></div>
+    </div>
+    <div class="sect">常見更換週期參考<span class="ln"></span></div>
+    <p class="sub-note">以下為台灣一般道路使用的常見參考值，實際依車型原廠手冊與駕駛習慣調整。</p>
+    <div class="grid g2">
+      <div class="card pad-lg"><table class="spec">
+        <tr><td>機油</td><td class="mono">5,000 km / 6 月</td></tr>
+        <tr><td>機油濾芯</td><td class="mono">10,000 km / 6 月</td></tr>
+        <tr><td>空氣濾芯</td><td class="mono">20,000 km / 12 月</td></tr>
+        <tr><td>冷氣濾網</td><td class="mono">10,000 km / 12 月</td></tr>
+        <tr><td>火星塞</td><td class="mono">40,000 km（銥/白金可達 100,000）</td></tr>
+        <tr><td>雨刷</td><td class="mono">12 月</td></tr>
+      </table></div>
+      <div class="card pad-lg"><table class="spec">
+        <tr><td>煞車油</td><td class="mono">40,000 km / 2 年</td></tr>
+        <tr><td>變速箱油</td><td class="mono">40,000 km / 2 年</td></tr>
+        <tr><td>冷卻液(水箱精)</td><td class="mono">40,000 km / 2 年</td></tr>
+        <tr><td>輪胎</td><td class="mono">40,000–50,000 km / 5 年</td></tr>
+        <tr><td>電瓶</td><td class="mono">2–3 年</td></tr>
+        <tr><td>煞車來令片</td><td class="mono">30,000–50,000 km</td></tr>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- 保險 -->
+  <div class="page" id="page-ins">
+    <div class="card pad-lg">
+      <div class="form-title">🛡️ 新增保單</div>
+      <div class="form-grid">
+        <div class="field"><label>保險公司</label><input id="i_company" placeholder="例 富邦"></div>
+        <div class="field"><label>險種</label><select id="i_type"><option>強制險</option><option>第三人責任險</option><option>車體險</option><option>竊盜險</option><option>乘客險</option><option>其他</option></select></div>
+        <div class="field"><label>保費 (元)</label><input type="number" id="i_premium"></div>
+        <div class="field"><label>起保日</label><input type="date" id="i_start"></div>
+        <div class="field"><label>到期日</label><input type="date" id="i_expire"></div>
+        <div class="field full"><label>備註</label><input id="i_note" placeholder="選填"></div>
+      </div>
+      <div class="btn-row"><button class="btn" onclick="addIns()">新增保單</button></div>
+    </div>
+    <div class="sect">保單到期倒數<span class="ln"></span></div>
+    <div class="status-grid" id="insStatus"></div>
+    <div class="sect">保單紀錄<span class="ln"></span></div>
+    <div class="tbl-wrap"><table class="data"><thead><tr><th>公司</th><th>險種</th><th>保費</th><th>起保</th><th>到期</th><th>備註</th><th></th></tr></thead><tbody id="insBody"></tbody></table></div>
+  </div>
+
+  <!-- 改裝 -->
+  <div class="page" id="page-mod">
+    <div class="card pad-lg">
+      <div class="form-title">⚙️ 新增改裝紀錄</div>
+      <div class="form-grid">
+        <div class="field"><label>日期</label><input type="date" id="d_date"></div>
+        <div class="field"><label>里程 (km)</label><input type="number" id="d_mileage"></div>
+        <div class="field"><label>項目</label><input id="d_item" placeholder="例 隔熱紙 / 行車記錄器"></div>
+        <div class="field"><label>費用 (元)</label><input type="number" id="d_cost"></div>
+        <div class="field"><label>店家</label><input id="d_shop" placeholder="選填"></div>
+        <div class="field full"><label>備註</label><input id="d_note" placeholder="選填"></div>
+      </div>
+      <div class="btn-row"><button class="btn" onclick="addMod()">新增紀錄</button></div>
+    </div>
+    <div class="grid g4" style="margin-top:18px">
+      <div class="card stat i"><div class="lbl">改裝累計花費</div><div class="num mono">$<span id="modTotal">0</span></div></div>
+    </div>
+    <div class="sect">改裝紀錄<span class="ln"></span></div>
+    <div class="tbl-wrap"><table class="data"><thead><tr><th>日期</th><th>里程</th><th>項目</th><th>費用</th><th>店家</th><th>備註</th><th></th></tr></thead><tbody id="modBody"></tbody></table></div>
+  </div>
+
+  <!-- 設定 -->
+  <div class="page" id="page-set">
+    <div class="card pad-lg">
+      <div class="form-title">🚙 車輛與提醒設定</div>
+      <div class="form-grid">
+        <div class="field"><label>車輛名稱</label><input id="s_name"></div>
+        <div class="field"><label>目前里程 (km)</label><input type="number" id="s_mileage"></div>
+        <div class="field full"><label>提醒信箱</label><input id="s_email" placeholder="收提醒信的 Email"></div>
+        <div class="field"><label>保養提前里程 (km)</label><input type="number" id="s_kmAhead" placeholder="1000"></div>
+        <div class="field"><label>保養提前天數</label><input type="number" id="s_dayAhead" placeholder="14"></div>
+        <div class="field"><label>保險提前天數</label><input type="number" id="s_insAhead" placeholder="30"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="saveSettings()">儲存設定</button>
+        <button class="btn ghost" onclick="sendTest()">立即寄送提醒測試信</button>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /app -->
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ════════ 設定 ════════ */
+var API_URL = '';   // https://script.google.com/macros/s/AKfycbyQPi0lu7uHDaLbJKSEINFCjID5DZNHRjVvtId5tVPMzNwxtQoGxebkr-LoLxLPgNewnQ/exec
+var DEMO = !API_URL || API_URL.indexOf('script.google.com') === -1;
+var DB = { settings:{}, cycles:[], fuel:[], maintenance:[], insurance:[], mods:[] };
+var charts = {};
+
+/* ════════ 示範資料 ════════ */
+function demoData(){return{
+  settings:{ '車輛名稱':'我的 CC', '目前里程':48200, '提醒信箱':'', '提前里程':1000, '提前天數':14, '保險提前天數':30 },
+  cycles:[
+    {'項目':'機油','里程週期':5000,'月份週期':6,'啟用':true},
+    {'項目':'機油濾芯','里程週期':10000,'月份週期':6,'啟用':true},
+    {'項目':'空氣濾芯','里程週期':20000,'月份週期':12,'啟用':true},
+    {'項目':'冷氣濾網','里程週期':10000,'月份週期':12,'啟用':true},
+    {'項目':'煞車油','里程週期':40000,'月份週期':24,'啟用':true},
+    {'項目':'輪胎','里程週期':40000,'月份週期':60,'啟用':true},
+    {'項目':'電瓶','里程週期':0,'月份週期':30,'啟用':true}
+  ],
+  fuel:[
+    {id:'d1',日期:'2025/12/18',里程:43200,公升:37.0,金額:1110,單價:30.0,油站:'中油',油號:'95',備註:''},
+    {id:'d2',日期:'2026/01/14',里程:43850,公升:35.5,金額:1080,單價:30.4,油站:'台塑',油號:'95',備註:''},
+    {id:'d3',日期:'2026/02/08',里程:44100,公升:38.2,金額:1190,單價:31.1,油站:'中油',油號:'95',備註:''},
+    {id:'d4',日期:'2026/03/02',里程:44680,公升:36.0,金額:1130,單價:31.4,油站:'台塑',油號:'95',備註:''},
+    {id:'d5',日期:'2026/03/24',里程:45350,公升:40.1,金額:1260,單價:31.4,油站:'中油',油號:'95',備註:''},
+    {id:'d6',日期:'2026/04/15',里程:46020,公升:37.5,金額:1200,單價:32.0,油站:'中油',油號:'95',備註:''},
+    {id:'d7',日期:'2026/05/10',里程:46810,公升:39.8,金額:1280,單價:32.2,油站:'台塑',油號:'95',備註:''},
+    {id:'d8',日期:'2026/06/02',里程:48200,公升:41.0,金額:1320,單價:32.2,油站:'中油',油號:'95',備註:''}
+  ],
+  maintenance:[
+    {id:'m1',日期:'2025/11/20',里程:42000,項目:'機油',費用:1800,店家:'原廠',備註:'含工資'},
+    {id:'m2',日期:'2025/11/20',里程:42000,項目:'機油濾芯',費用:300,店家:'原廠',備註:''},
+    {id:'m3',日期:'2024/06/15',里程:35000,項目:'煞車油',費用:1200,店家:'原廠',備註:''},
+    {id:'m4',日期:'2024/06/15',里程:35000,項目:'輪胎',費用:12000,店家:'輪胎行',備註:'四條'}
+  ],
+  insurance:[
+    {id:'i1',保險公司:'富邦',險種:'強制險',保費:1740,起保日:'2025/07/01',到期日:'2026/06/30',備註:''},
+    {id:'i2',保險公司:'富邦',險種:'第三人責任險',保費:6800,起保日:'2025/07/01',到期日:'2026/06/30',備註:'200/400萬'}
+  ],
+  mods:[
+    {id:'o1',日期:'2025/08/10',里程:40000,項目:'前擋隔熱紙',費用:6000,店家:'貼膜店',備註:'3M'},
+    {id:'o2',日期:'2025/09/01',里程:40500,項目:'行車記錄器',費用:4500,店家:'通訊行',備註:'前後雙錄'}
+  ]
+};}
+
+/* ════════ 載入 ════════ */
+function load(){
+  if(DEMO){ DB=demoData(); document.getElementById('demoBar').style.display='block'; renderAll(); return; }
+  fetch(API_URL+'?action=all').then(function(r){return r.json()}).then(function(d){
+    if(d.status==='success'){ DB=d; renderAll(); } else toast('載入失敗：'+(d.message||''));
+  }).catch(function(e){ toast('連線失敗，請檢查 API 網址'); console.log(e); });
+}
+function renderAll(){
+  document.getElementById('loader').style.display='none';
+  document.getElementById('app').style.display='block';
+  fillSelects(); renderHeader(); renderDash(); renderAnalysis();
+  renderFuel(); renderMaint(); renderIns(); renderMod(); renderSettings();
+}
+
+/* ════════ 工具 ════════ */
+function n(v){ if(v===''||v===null||v===undefined) return 0; var x=parseFloat(String(v).replace(/,/g,'')); return isNaN(x)?0:x; }
+function fmt(v){ return String(Math.round(n(v))).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+function r1(v){ return Math.round(n(v)*10)/10; }
+function r2(v){ return Math.round(n(v)*100)/100; }
+function pDate(s){ if(!s) return null; if(s instanceof Date) return s; var str=String(s).replace(/-/g,'/').trim(); var p=str.split(/[\/\s:]/); if(p.length>=3){var d=new Date(+p[0],+p[1]-1,+p[2]); if(!isNaN(d))return d;} var d2=new Date(str); return isNaN(d2)?null:d2; }
+function addMonths(d,m){ var x=new Date(d.getTime()); x.setMonth(x.getMonth()+m); return x; }
+function today(){ return new Date(); }
+function fromInput(id){ var v=document.getElementById(id).value; return /^\d{4}-\d{2}-\d{2}$/.test(v)?v.replace(/-/g,'/'):v; }
+function curMileage(){ return n(DB.settings['目前里程']); }
+function toast(msg){ var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(function(){t.classList.remove('show')},2600); }
+
+/* ════════ 提醒計算 ════════ */
+function calcReminders(){
+  var cm=curMileage(), kmA=n(DB.settings['提前里程'])||1000, dayA=n(DB.settings['提前天數'])||14, insA=n(DB.settings['保險提前天數'])||30;
+  var maint=[], ins=[];
+  DB.cycles.forEach(function(cy){
+    if(!isEnabled(cy['啟用'])) return;
+    var item=String(cy['項目']).trim(), kmC=n(cy['里程週期']), moC=n(cy['月份週期']);
+    var last=null;
+    DB.maintenance.forEach(function(r){ if(String(r['項目']).trim()===item){ var dt=pDate(r['日期']); if(!last||(dt&&dt>last.date)) last={date:dt,mileage:n(r['里程']),raw:r['日期']}; } });
+    if(!last){ maint.push({item:item,level:'unknown',kmR:null,dayR:null}); return; }
+    var kmR=null,dayR=null,over=false,due=false;
+    if(kmC>0&&cm>0&&last.mileage>0){ kmR=(last.mileage+kmC)-cm; if(kmR<=0)over=true; else if(kmR<=kmA)due=true; }
+    if(moC>0&&last.date){ dayR=Math.ceil((addMonths(last.date,moC)-today())/86400000); if(dayR<=0)over=true; else if(dayR<=dayA)due=true; }
+    maint.push({item:item,level:over?'overdue':(due?'due':'ok'),kmR:kmR,dayR:dayR});
+  });
+  DB.insurance.forEach(function(r){ var exp=pDate(r['到期日']); if(!exp)return; var dr=Math.ceil((exp-today())/86400000); ins.push({type:r['險種'],company:r['保險公司'],expire:r['到期日'],dayR:dr,level:dr<=0?'overdue':(dr<=insA?'due':'ok')}); });
+  return {maint:maint,ins:ins};
+}
+function isEnabled(v){ return v===true||v==='TRUE'||v==='true'||v===1||v==='1'; }
+function maintDetail(m){ var a=[]; if(m.kmR!==null&&m.kmR!==undefined)a.push(m.kmR<=0?('已超過 '+fmt(Math.abs(m.kmR))+' km'):('還有 '+fmt(m.kmR)+' km')); if(m.dayR!==null&&m.dayR!==undefined)a.push(m.dayR<=0?('已超過 '+Math.abs(m.dayR)+' 天'):('還有 '+m.dayR+' 天')); return a.join('｜')||'—'; }
+
+/* ════════ 里程／油耗／成本 分析核心 ════════ */
+function mileagePoints(){
+  var pts=[];
+  ['fuel','maintenance','mods'].forEach(function(k){ DB[k].forEach(function(r){ var d=pDate(r['日期']), m=n(r['里程']); if(d&&m>0) pts.push({date:d,mileage:m}); }); });
+  pts.sort(function(a,b){ return a.date-b.date || a.mileage-b.mileage; });
+  return pts;
+}
+function mileageAt(pts,end){ var v=null; for(var i=0;i<pts.length;i++){ if(pts[i].date<=end) v=pts[i].mileage; } return v; }
+function totalDistance(){ var p=mileagePoints(); if(p.length<2) return 0; var d=p[p.length-1].mileage-p[0].mileage; return d>0?d:0; }
+function spanDays(){ var p=mileagePoints(); if(p.length<2) return 0; return Math.max(1,Math.round((p[p.length-1].date-p[0].date)/86400000)); }
+
+function fuelStats(){
+  var arr=DB.fuel.slice().filter(function(r){return n(r['里程'])>0&&n(r['公升'])>0}).sort(function(a,b){return n(a['里程'])-n(b['里程'])});
+  var totalL=0,totalAmt=0; DB.fuel.forEach(function(r){ totalL+=n(r['公升']); totalAmt+=n(r['金額']); });
+  var kpl=[]; // {label,v}
+  for(var i=1;i<arr.length;i++){ var dist=n(arr[i]['里程'])-n(arr[i-1]['里程']); var l=n(arr[i]['公升']); if(dist>0&&l>0&&dist<2000) kpl.push({label:(arr[i]['日期']||'').slice(5),v:r1(dist/l)}); }
+  var vals=kpl.map(function(x){return x.v}); var avg=null,best=null,worst=null,last=null;
+  if(vals.length){ var s=0; vals.forEach(function(v){s+=v}); avg=r1(s/vals.length); best=Math.max.apply(null,vals); worst=Math.min.apply(null,vals); last=vals[vals.length-1]; }
+  // 加油頻率
+  var fd=DB.fuel.map(function(r){return pDate(r['日期'])}).filter(Boolean).sort(function(a,b){return a-b});
+  var freq=null; if(fd.length>1) freq=Math.round((fd[fd.length-1]-fd[0])/86400000/(fd.length-1));
+  // 價格序列
+  var price=DB.fuel.slice().sort(function(a,b){return pDate(a['日期'])-pDate(b['日期'])}).map(function(r){ var l=n(r['公升']); return {label:(r['日期']||'').slice(5),v:l>0?r1(n(r['金額'])/l):0}; }).filter(function(x){return x.v>0});
+  return {totalL:totalL,totalAmt:totalAmt,fills:DB.fuel.length,avgPrice:totalL>0?r1(totalAmt/totalL):0,avgFill:DB.fuel.length?Math.round(totalAmt/DB.fuel.length):0,freq:freq,kpl:kpl,kplAvg:avg,best:best,worst:worst,lastKpl:last,price:price};
+}
+function sumField(rec,fld){ var t=0; rec.forEach(function(r){t+=n(r[fld])}); return t; }
+function costStats(){
+  var f=sumField(DB.fuel,'金額'), m=sumField(DB.maintenance,'費用'), o=sumField(DB.mods,'費用'), ins=sumField(DB.insurance,'保費');
+  var dist=totalDistance();
+  return {fuel:f,maint:m,mod:o,ins:ins,total:f+m+o+ins,dist:dist,fuelKm:dist>0?r2(f/dist):0,totalKm:dist>0?r2((f+m+o+ins)/dist):0};
+}
+function monthsBack(k){ var arr=[],d=new Date(); for(var i=k-1;i>=0;i--){ var x=new Date(d.getFullYear(),d.getMonth()-i,1); arr.push({y:x.getFullYear(),m:x.getMonth(),label:(x.getMonth()+1)+'月'}); } return arr; }
+function monthEnd(y,m){ return new Date(y,m+1,0,23,59,59); }
+function monthlyKm(ms){
+  var pts=mileagePoints(); var out=[];
+  ms.forEach(function(mo){
+    var endNow=monthEnd(mo.y,mo.m); var endPrev=new Date(mo.y,mo.m,0,23,59,59);
+    var a=mileageAt(pts,endPrev), b=mileageAt(pts,endNow);
+    var km=(a!==null&&b!==null&&b>=a)?(b-a):0; out.push(km);
+  });
+  return out;
+}
+
+/* ════════ Header / 總覽 ════════ */
+function renderHeader(){ document.getElementById('carName').textContent=DB.settings['車輛名稱']||'愛車支出管理'; document.getElementById('odoVal').textContent=fmt(curMileage()); }
+function spend(records,field){ var now=new Date(),mm=0,yy=0; records.forEach(function(r){ var d=pDate(r['日期']); if(!d)return; var c=n(r[field]); if(d.getFullYear()===now.getFullYear()){ yy+=c; if(d.getMonth()===now.getMonth())mm+=c; } }); return {m:mm,y:yy}; }
+function renderDash(){
+  var f=spend(DB.fuel,'金額'),mn=spend(DB.maintenance,'費用'),md=spend(DB.mods,'費用');
+  var insY=0; DB.insurance.forEach(function(r){var d=pDate(r['起保日']); if(d&&d.getFullYear()===new Date().getFullYear())insY+=n(r['保費']);});
+  document.getElementById('sMonth').textContent=fmt(f.m+mn.m+md.m);
+  document.getElementById('sYear').textContent=fmt(f.y+mn.y+md.y+insY);
+  document.getElementById('sKpl').textContent=fuelStats().kplAvg!==null?fuelStats().kplAvg:'--';
+  var rem=calcReminders();
+  var due=rem.maint.filter(function(x){return x.level==='due'||x.level==='overdue'}).concat(rem.ins.filter(function(x){return x.level==='due'||x.level==='overdue'}));
+  document.getElementById('sRem').textContent=due.length;
+  var box=document.getElementById('remBox'),html='';
+  rem.maint.filter(function(x){return x.level==='due'||x.level==='overdue'}).forEach(function(m){ html+=remRow('🔧',m.item,maintDetail(m),m.level); });
+  rem.ins.filter(function(x){return x.level==='due'||x.level==='overdue'}).forEach(function(s){ html+=remRow('🛡️',(s.company?s.company+' ':'')+s.type+'（'+s.expire+'）',s.dayR<=0?('已逾期 '+Math.abs(s.dayR)+' 天'):('倒數 '+s.dayR+' 天'),s.level); });
+  box.innerHTML=html||'<div class="all-ok">✓ 目前沒有需要處理的保養或保險項目</div>';
+  var ms=monthsBack(6); var fuelD=[],mD=[],oD=[];
+  ms.forEach(function(mo){ var s=function(rec,fld){var t=0;rec.forEach(function(r){var d=pDate(r['日期']);if(d&&d.getFullYear()===mo.y&&d.getMonth()===mo.m)t+=n(r[fld]);});return t;}; fuelD.push(s(DB.fuel,'金額'));mD.push(s(DB.maintenance,'費用'));oD.push(s(DB.mods,'費用')); });
+  mkChart('chMonth','bar',{labels:ms.map(function(x){return x.label}),datasets:[
+    {label:'油費',data:fuelD,backgroundColor:'#4f46e5',borderRadius:5},
+    {label:'保養',data:mD,backgroundColor:'#0d9488',borderRadius:5},
+    {label:'改裝',data:oD,backgroundColor:'#d97706',borderRadius:5}]},{stack:true});
+  mkChart('chPie','doughnut',{labels:['油費','保養','改裝','保險'],datasets:[{data:[f.y,mn.y,md.y,insY],backgroundColor:['#4f46e5','#0d9488','#d97706','#94a3b8'],borderColor:'#fff',borderWidth:3}]},{cut:'64%'});
+}
+function remRow(icon,name,detail,level){ var c=level==='overdue'?'#c0392b':'#d97706'; var tag=level==='overdue'?'<span class="tag over">已逾期</span>':'<span class="tag due">即將到期</span>'; return '<div class="rem"><span class="dot" style="background:'+c+'"></span><span class="nm">'+icon+' '+name+tag+'</span><span class="ds">'+detail+'</span></div>'; }
+
+/* ════════ 分析 ════════ */
+function renderAnalysis(){
+  var dist=totalDistance(), days=spanDays();
+  var dayKm=days>0?Math.round(dist/days):0, monKm=Math.round(dayKm*30.44);
+  var fs=fuelStats(), cs=costStats();
+  setT('aMonthKm',monKm?fmt(monKm):'--'); setT('aDayKm',dayKm?fmt(dayKm):'--');
+  setT('aKpl',fs.kplAvg!==null?fs.kplAvg:'--');
+  setT('aKplRange',(fs.best!==null)?('最佳 '+fs.best+' / 最差 '+fs.worst):'—');
+  setT('aPrice',fs.avgPrice||'--'); setT('aFuelKm',cs.fuelKm||'--'); setT('aTotalKm',cs.totalKm||'--');
+  setT('aFreq',fs.freq!==null?fs.freq:'--'); setT('aTotalKm2',dist?fmt(dist):'--');
+
+  // 每月行駛
+  var ms12=monthsBack(12); var km12=monthlyKm(ms12);
+  mkChart('chKm','bar',{labels:ms12.map(function(x){return x.label}),datasets:[{label:'行駛 km',data:km12,backgroundColor:'#4f46e5',borderRadius:5}]},{});
+  // 油耗
+  if(fs.kpl.length){ var avgLine=fs.kpl.map(function(){return fs.kplAvg});
+    mkChart('chKpl','line',{labels:fs.kpl.map(function(x){return x.label}),datasets:[
+      {label:'km/L',data:fs.kpl.map(function(x){return x.v}),borderColor:'#0d9488',backgroundColor:'rgba(13,148,136,.10)',fill:true,tension:.35,pointRadius:4,pointBackgroundColor:'#0d9488'},
+      {label:'平均',data:avgLine,borderColor:'#c4c8d0',borderDash:[5,4],pointRadius:0,fill:false}]},{}); } else clearChart('chKpl');
+  // 油價
+  if(fs.price.length){ mkChart('chPrice','line',{labels:fs.price.map(function(x){return x.label}),datasets:[{label:'元/L',data:fs.price.map(function(x){return x.v}),borderColor:'#d97706',backgroundColor:'rgba(217,119,6,.10)',fill:true,tension:.35,pointRadius:4,pointBackgroundColor:'#d97706'}]},{}); } else clearChart('chPrice');
+  // 12月支出
+  var f12=[],m12=[],o12=[]; ms12.forEach(function(mo){ var s=function(rec,fld){var t=0;rec.forEach(function(r){var d=pDate(r['日期']);if(d&&d.getFullYear()===mo.y&&d.getMonth()===mo.m)t+=n(r[fld]);});return t;}; f12.push(s(DB.fuel,'金額'));m12.push(s(DB.maintenance,'費用'));o12.push(s(DB.mods,'費用')); });
+  mkChart('chMonth12','bar',{labels:ms12.map(function(x){return x.label}),datasets:[
+    {label:'油費',data:f12,backgroundColor:'#4f46e5',borderRadius:4},
+    {label:'保養',data:m12,backgroundColor:'#0d9488',borderRadius:4},
+    {label:'改裝',data:o12,backgroundColor:'#d97706',borderRadius:4}]},{stack:true});
+  // 每公里成本
+  var costKm=[]; for(var i=0;i<ms12.length;i++){ costKm.push(km12[i]>0?r2(f12[i]/km12[i]):0); }
+  mkChart('chCostKm','line',{labels:ms12.map(function(x){return x.label}),datasets:[{label:'元/km',data:costKm,borderColor:'#4f46e5',backgroundColor:'rgba(79,70,229,.08)',fill:true,tension:.35,pointRadius:3,pointBackgroundColor:'#4f46e5'}]},{});
+
+  // 明細表
+  document.getElementById('specFuel').innerHTML=specRows([
+    ['平均油耗', (fs.kplAvg!==null?fs.kplAvg+' km/L':'—')],
+    ['最佳油耗', (fs.best!==null?fs.best+' km/L':'—')],
+    ['最差油耗', (fs.worst!==null?fs.worst+' km/L':'—')],
+    ['最近一次', (fs.lastKpl!==null?fs.lastKpl+' km/L':'—')],
+    ['加油次數', fs.fills+' 次'],
+    ['累計加油', r1(fs.totalL)+' L'],
+    ['平均油價', '$'+fs.avgPrice+' /L'],
+    ['平均每次', '$'+fmt(fs.avgFill)],
+    ['加油頻率', (fs.freq!==null?fs.freq+' 天/次':'—')]
+  ]);
+  document.getElementById('specMile').innerHTML=specRows([
+    ['累計行駛', fmt(dist)+' km'],
+    ['紀錄區間', days+' 天'],
+    ['日均行駛', fmt(dayKm)+' km'],
+    ['月均行駛', fmt(monKm)+' km'],
+    ['年化推估', fmt(Math.round(dayKm*365))+' km'],
+    ['目前里程', fmt(curMileage())+' km']
+  ]);
+  document.getElementById('specCost').innerHTML=specRows([
+    ['總油費', '$'+fmt(cs.fuel)],
+    ['總保養', '$'+fmt(cs.maint)],
+    ['總改裝', '$'+fmt(cs.mod)],
+    ['總保費', '$'+fmt(cs.ins)],
+    ['總持有成本', '$'+fmt(cs.total)],
+    ['每公里油費', '$'+cs.fuelKm],
+    ['每公里總成本', '$'+cs.totalKm]
+  ]);
+}
+function specRows(arr){ return arr.map(function(x){return '<tr><td>'+x[0]+'</td><td class="mono">'+x[1]+'</td></tr>'}).join(''); }
+function setT(id,v){ var e=document.getElementById(id); if(e)e.textContent=v; }
+
+/* ════════ 油費 ════════ */
+function renderFuel(){
+  var sorted=DB.fuel.slice().filter(function(r){return n(r['里程'])>0}).sort(function(a,b){return n(a['里程'])-n(b['里程'])});
+  var kplMap={}; for(var i=1;i<sorted.length;i++){ var dist=n(sorted[i]['里程'])-n(sorted[i-1]['里程']); var l=n(sorted[i]['公升']); if(dist>0&&l>0&&dist<2000) kplMap[sorted[i].id]=r1(dist/l); }
+  var rows=DB.fuel.slice().sort(srtDate);
+  document.getElementById('fuelBody').innerHTML=rows.length?rows.map(function(r){
+    var kpl=kplMap[r.id]!==undefined?(kplMap[r.id]+' km/L'):'-';
+    return tr([r['日期'],fmt(r['里程']),r['公升'],'$'+fmt(r['金額']),r['單價'],kpl,r['油站']||'-',r['油號']||'-'],'油費',r.id);
+  }).join(''):emptyRow(9);
+}
+function addFuel(){ var p={action:'addFuel',date:fromInput('f_date'),mileage:val('f_mileage'),liter:val('f_liter'),amount:val('f_amount'),station:val('f_station'),octane:val('f_octane'),note:val('f_note')}; if(!p.date||!p.liter||!p.amount){toast('請填日期、加油量、金額');return;} post(p,['f_mileage','f_liter','f_amount','f_station','f_note']); }
+
+/* ════════ 保養 ════════ */
+function renderMaint(){
+  var rows=DB.maintenance.slice().sort(srtDate);
+  document.getElementById('maintBody').innerHTML=rows.length?rows.map(function(r){return tr([r['日期'],fmt(r['里程']),r['項目'],'$'+fmt(r['費用']),r['店家']||'-',r['備註']||'-'],'保養',r.id);}).join(''):emptyRow(7);
+  var rem=calcReminders();
+  document.getElementById('maintStatus').innerHTML=rem.maint.map(function(m){
+    var cls=m.level==='overdue'?'over':(m.level==='due'?'due':(m.level==='unknown'?'':'ok'));
+    var tc=m.level==='overdue'?'over':(m.level==='due'?'due':(m.level==='unknown'?'unk':'ok'));
+    var tt=m.level==='overdue'?'已逾期':(m.level==='due'?'即將到期':(m.level==='unknown'?'無紀錄':'正常'));
+    var d=m.level==='unknown'?'建議建立首次保養':maintDetail(m);
+    return '<div class="ms '+cls+'"><div class="t">'+m.item+'<span class="tag '+tc+'">'+tt+'</span></div><div class="d">'+d+'</div></div>';
+  }).join('')||'<div class="empty">尚未設定保養週期</div>';
+}
+function addMaint(){ var p={action:'addMaint',date:fromInput('m_date'),mileage:val('m_mileage'),item:val('m_item'),cost:val('m_cost'),shop:val('m_shop'),note:val('m_note')}; if(!p.date||!p.item){toast('請填日期與項目');return;} post(p,['m_mileage','m_cost','m_shop','m_note']); }
+
+/* ════════ 保險 ════════ */
+function renderIns(){
+  var rows=DB.insurance.slice();
+  document.getElementById('insBody').innerHTML=rows.length?rows.map(function(r){return tr([r['保險公司']||'-',r['險種'],'$'+fmt(r['保費']),r['起保日']||'-',r['到期日'],r['備註']||'-'],'保險',r.id);}).join(''):emptyRow(7);
+  var rem=calcReminders();
+  document.getElementById('insStatus').innerHTML=rem.ins.length?rem.ins.map(function(s){
+    var cls=s.level==='overdue'?'over':(s.level==='due'?'due':'ok');
+    var tt=s.level==='overdue'?'已逾期':(s.level==='due'?'即將到期':'有效');
+    var d=s.dayR<=0?('已逾期 '+Math.abs(s.dayR)+' 天'):('倒數 '+s.dayR+' 天');
+    return '<div class="ms '+cls+'"><div class="t">'+(s.company?s.company+' ':'')+s.type+'<span class="tag '+cls+'">'+tt+'</span></div><div class="d">'+s.expire+'｜'+d+'</div></div>';
+  }).join(''):'<div class="empty">尚無保單</div>';
+}
+function addIns(){ var p={action:'addIns',company:val('i_company'),type:val('i_type'),premium:val('i_premium'),start:fromInput('i_start'),expire:fromInput('i_expire'),note:val('i_note')}; if(!p.expire){toast('請填到期日');return;} post(p,['i_company','i_premium','i_start','i_expire','i_note']); }
+
+/* ════════ 改裝 ════════ */
+function renderMod(){
+  var rows=DB.mods.slice().sort(srtDate),total=0; DB.mods.forEach(function(r){total+=n(r['費用'])});
+  document.getElementById('modTotal').textContent=fmt(total);
+  document.getElementById('modBody').innerHTML=rows.length?rows.map(function(r){return tr([r['日期'],fmt(r['里程']),r['項目'],'$'+fmt(r['費用']),r['店家']||'-',r['備註']||'-'],'改裝',r.id);}).join(''):emptyRow(7);
+}
+function addMod(){ var p={action:'addMod',date:fromInput('d_date'),mileage:val('d_mileage'),item:val('d_item'),cost:val('d_cost'),shop:val('d_shop'),note:val('d_note')}; if(!p.date||!p.item){toast('請填日期與項目');return;} post(p,['d_mileage','d_item','d_cost','d_shop','d_note']); }
+
+/* ════════ 設定 ════════ */
+function renderSettings(){ var s=DB.settings; setv('s_name',s['車輛名稱']);setv('s_mileage',s['目前里程']);setv('s_email',s['提醒信箱']);setv('s_kmAhead',s['提前里程']);setv('s_dayAhead',s['提前天數']);setv('s_insAhead',s['保險提前天數']); renderCycleRows(); }
+function renderCycleRows(){
+  document.getElementById('cycleBody').innerHTML=DB.cycles.map(function(c,i){ var ck=isEnabled(c['啟用'])?'checked':'';
+    return '<tr><td><input style="width:130px" value="'+(c['項目']||'')+'" data-cy="item" data-i="'+i+'" placeholder="項目名稱"></td>'
+      +'<td><input type="number" style="width:100px" value="'+n(c['里程週期'])+'" data-cy="km" data-i="'+i+'"></td>'
+      +'<td><input type="number" style="width:80px" value="'+n(c['月份週期'])+'" data-cy="mo" data-i="'+i+'"></td>'
+      +'<td><input type="checkbox" '+ck+' data-cy="en" data-i="'+i+'"></td>'
+      +'<td><span class="del" onclick="delCycleRow('+i+')">刪除</span></td></tr>';
+  }).join('')||'<tr><td colspan="5" class="empty">尚無項目，按下方「＋ 新增項目」</td></tr>';
+}
+function addCycleRow(){ DB.cycles=collectCycles(); DB.cycles.push({'項目':'','里程週期':0,'月份週期':0,'啟用':true}); renderCycleRows(); }
+function delCycleRow(i){ DB.cycles=collectCycles(); DB.cycles.splice(i,1); renderCycleRows(); fillSelects(); }
+function saveSettings(){ var s={'車輛名稱':val('s_name'),'目前里程':val('s_mileage'),'提醒信箱':val('s_email'),'提前里程':val('s_kmAhead')||1000,'提前天數':val('s_dayAhead')||14,'保險提前天數':val('s_insAhead')||30}; if(DEMO){DB.settings=s;renderAll();toast('（示範）設定已更新');return;} fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'updateSettings',settings:s})}).then(function(r){return r.json()}).then(function(d){toast(d.message||'已更新');load();}); }
+function collectCycles(){ var map={}; [].slice.call(document.querySelectorAll('#cycleBody input')).forEach(function(el){ var i=el.getAttribute('data-i'); if(!map[i])map[i]={}; var k=el.getAttribute('data-cy'); map[i][k]=(k==='en')?el.checked:el.value; }); var keys=Object.keys(map).sort(function(a,b){return a-b}); return keys.map(function(i){ return {'項目':map[i].item||'','里程週期':n(map[i].km),'月份週期':n(map[i].mo),'啟用':map[i].en}; }); }
+function saveCycles(){ var cy=collectCycles().filter(function(c){return c['項目']&&String(c['項目']).trim()}); if(DEMO){DB.cycles=cy;renderAll();toast('（示範）週期已更新');return;} fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'updateCycle',cycles:cy})}).then(function(r){return r.json()}).then(function(d){toast(d.message||'已更新');load();}); }
+function sendTest(){ if(DEMO){toast('示範模式無法寄信，部署後可用');return;} toast('寄送中…'); fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'sendReminderNow'})}).then(function(r){return r.json()}).then(function(d){toast(d.message||'已寄送');}); }
+
+/* ════════ 新增／刪除 ════════ */
+function post(p,clearIds){ if(DEMO){ demoInsert(p); toast('（示範）已新增'); clearFields(clearIds); renderAll(); return; } fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(p)}).then(function(r){return r.json()}).then(function(d){ toast(d.message||'完成'); if(d.status==='success'){clearFields(clearIds);load();} }); }
+function demoInsert(p){ var id='x'+Date.now();
+  if(p.action==='addFuel'){var u=n(p.liter)>0?r2(n(p.amount)/n(p.liter)):'';DB.fuel.push({id:id,日期:p.date,里程:n(p.mileage),公升:n(p.liter),金額:n(p.amount),單價:u,油站:p.station,油號:p.octane,備註:p.note});bump(p.mileage);}
+  if(p.action==='addMaint'){DB.maintenance.push({id:id,日期:p.date,里程:n(p.mileage),項目:p.item,費用:n(p.cost),店家:p.shop,備註:p.note});bump(p.mileage);}
+  if(p.action==='addIns'){DB.insurance.push({id:id,保險公司:p.company,險種:p.type,保費:n(p.premium),起保日:p.start,到期日:p.expire,備註:p.note});}
+  if(p.action==='addMod'){DB.mods.push({id:id,日期:p.date,里程:n(p.mileage),項目:p.item,費用:n(p.cost),店家:p.shop,備註:p.note});bump(p.mileage);}
+}
+function bump(m){ if(n(m)>curMileage())DB.settings['目前里程']=n(m); }
+function del(sheet,id){ if(!confirm('確定刪除這筆紀錄？'))return; if(DEMO){var k={'油費':'fuel','保養':'maintenance','保險':'insurance','改裝':'mods'}[sheet];DB[k]=DB[k].filter(function(r){return r.id!==id});renderAll();toast('（示範）已刪除');return;} fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'delete',sheet:sheet,id:id})}).then(function(r){return r.json()}).then(function(d){toast(d.message||'已刪除');load();}); }
+
+/* ════════ DOM ════════ */
+function val(id){ return document.getElementById(id).value; }
+function setv(id,v){ var e=document.getElementById(id); if(e)e.value=(v===undefined||v===null)?'':v; }
+function clearFields(ids){ if(!ids)return; ids.forEach(function(id){var e=document.getElementById(id);if(e&&e.type!=='date')e.value='';}); }
+function srtDate(a,b){ var x=pDate(a['日期']),y=pDate(b['日期']); return (y?y.getTime():0)-(x?x.getTime():0); }
+function tr(cells,sheet,id){ return '<tr>'+cells.map(function(c){return '<td class="mono">'+(c===''||c===null||c===undefined?'-':c)+'</td>'}).join('')+'<td><span class="del" onclick="del(\''+sheet+'\',\''+id+'\')">刪除</span></td></tr>'; }
+function emptyRow(span){ return '<tr><td colspan="'+span+'" class="empty">尚無資料</td></tr>'; }
+function fillSelects(){ var sel=document.getElementById('m_item'); sel.innerHTML=''; var items=DB.cycles.map(function(c){return c['項目']}).filter(Boolean); items.concat(['雨刷','其他']).forEach(function(it){var o=document.createElement('option');o.value=it;o.textContent=it;sel.appendChild(o);}); }
+
+/* ════════ Chart.js（白底） ════════ */
+function mkChart(id,type,data,opt){
+  var ctx=document.getElementById(id); if(!ctx)return; if(charts[id])charts[id].destroy();
+  var grid='rgba(26,29,39,.06)', tick='#9aa0ad';
+  var o={responsive:true,interaction:{intersect:false,mode:'index'},
+    plugins:{legend:{labels:{color:'#5a6172',font:{family:'Noto Sans TC',size:11},usePointStyle:true,pointStyle:'circle',boxWidth:7,padding:14}},
+      tooltip:{backgroundColor:'#1a1d27',padding:10,cornerRadius:8,titleFont:{family:'Noto Sans TC'},bodyFont:{family:'Space Mono'}}},
+    scales:type==='doughnut'?{}:{x:{ticks:{color:tick,font:{family:'Space Mono',size:10}},grid:{display:false}},y:{ticks:{color:tick,font:{family:'Space Mono',size:10}},grid:{color:grid},border:{display:false}}}};
+  if(opt&&opt.stack){ o.scales.x.stacked=true; o.scales.y.stacked=true; }
+  if(opt&&opt.cut){ o.cutout=opt.cut; }
+  charts[id]=new Chart(ctx,{type:type,data:data,options:o});
+}
+function clearChart(id){ if(charts[id]){charts[id].destroy();delete charts[id];} }
+
+/* tabs */
+[].slice.call(document.querySelectorAll('.tab')).forEach(function(t){ t.onclick=function(){ [].slice.call(document.querySelectorAll('.tab')).forEach(function(x){x.classList.remove('active')}); [].slice.call(document.querySelectorAll('.page')).forEach(function(x){x.classList.remove('active')}); t.classList.add('active'); document.getElementById('page-'+t.getAttribute('data-p')).classList.add('active'); }; });
+['f_date','m_date','d_date'].forEach(function(id){var e=document.getElementById(id);if(e)e.value=new Date().toISOString().slice(0,10);});
+load();
+</script>
+</body>
+</html>
