@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>愛車支出管理</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#4f46e5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="愛車管理">
+<link rel="apple-touch-icon" href="./icon-180.png">
+<link rel="icon" type="image/png" href="./icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
@@ -353,7 +361,7 @@ canvas{max-height:300px}
 
 <script>
 /* ════════ 設定 ════════ */
-var API_URL = '';   //https://script.google.com/macros/s/AKfycbwFomPl5kiOw2RtoMn3l3ACBGHoMlzIcLU2oef6RDKgzwnLrTDFxKVAx6IC_T6FUl4j8Q/exec
+var API_URL = '';   //https://script.google.com/macros/s/AKfycbwcwvX-j7EbnC5huqAPe8OsnGlx5GpthIHpmEz8gcD8cvFRh_Wzfmc8Chk-gVxZLB3NKw/exec
 var DEMO = !API_URL || API_URL.indexOf('script.google.com') === -1;
 var DB = { settings:{}, cycles:[], fuel:[], maintenance:[], insurance:[], mods:[] };
 var charts = {};
@@ -656,6 +664,13 @@ function clearChart(id){ if(charts[id]){charts[id].destroy();delete charts[id];}
 [].slice.call(document.querySelectorAll('.tab')).forEach(function(t){ t.onclick=function(){ switchTab(t.getAttribute('data-p')); }; });
 resetDates();
 load();
+
+/* ════════ PWA：註冊 Service Worker（需 HTTPS，GitHub Pages 即可） ════════ */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./sw.js').catch(function (e) { console.log('SW 註冊失敗', e); });
+  });
+}
 </script>
 </body>
 </html>
