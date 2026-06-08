@@ -1,0 +1,16 @@
+{
+  "name": "愛車支出管理",
+  "short_name": "愛車管理",
+  "description": "油費、保養、保險、改裝紀錄與到期提醒",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f4ef",
+  "theme_color": "#4f46e5",
+  "lang": "zh-Hant",
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
