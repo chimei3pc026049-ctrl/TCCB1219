@@ -508,17 +508,17 @@ function spanDays(){ var p=mileagePoints(); if(p.length<2) return 0; return Math
 function fuelStats(){
   var arr=DB.fuel.slice().filter(function(r){return n(r['里程'])>0&&n(r['公升'])>0}).sort(function(a,b){return n(a['里程'])-n(b['里程'])});
   var totalL=0,totalAmt=0; DB.fuel.forEach(function(r){ totalL+=n(r['公升']); totalAmt+=n(r['金額']); });
-  var kpl=[]; for(var i=1;i<arr.length;i++){ var dist=n(arr[i]['里程'])-n(arr[i-1]['里程']); var l=n(arr[i]['公升']); if(dist>0&&l>0&&dist<2000) kpl.push({label:(arr[i]['日期']||'').slice(5),v:r1(dist/l)}); }
+  var kpl=[]; for(var i=1;i<arr.length;i++){ var dist=n(arr[i]['里程'])-n(arr[i-1]['里程']); var l=n(arr[i]['公升']); if(dist>0&&l>0&&dist<2000) kpl.push({label:String(arr[i]['日期']||'').slice(2),v:r1(dist/l)}); }
   var vals=kpl.map(function(x){return x.v}); var avg=null,best=null,worst=null,last=null;
   if(vals.length){ var s=0; vals.forEach(function(v){s+=v}); avg=r1(s/vals.length); best=Math.max.apply(null,vals); worst=Math.min.apply(null,vals); last=vals[vals.length-1]; }
   var fd=DB.fuel.map(function(r){return pDate(r['日期'])}).filter(Boolean).sort(function(a,b){return a-b});
   var freq=null; if(fd.length>1) freq=Math.round((fd[fd.length-1]-fd[0])/86400000/(fd.length-1));
-  var price=DB.fuel.slice().sort(function(a,b){return pDate(a['日期'])-pDate(b['日期'])}).map(function(r){ var l=n(r['公升']); return {label:(r['日期']||'').slice(5),v:l>0?r1(n(r['金額'])/l):0}; }).filter(function(x){return x.v>0});
+  var price=DB.fuel.slice().sort(function(a,b){return pDate(a['日期'])-pDate(b['日期'])}).map(function(r){ var l=n(r['公升']); return {label:String(r['日期']||'').slice(2),v:l>0?r1(n(r['金額'])/l):0}; }).filter(function(x){return x.v>0});
   return {totalL:totalL,totalAmt:totalAmt,fills:DB.fuel.length,avgPrice:totalL>0?r1(totalAmt/totalL):0,avgFill:DB.fuel.length?Math.round(totalAmt/DB.fuel.length):0,freq:freq,kpl:kpl,kplAvg:avg,best:best,worst:worst,lastKpl:last,price:price};
 }
 function sumField(rec,fld){ var t=0; rec.forEach(function(r){t+=n(r[fld])}); return t; }
 function costStats(){ var f=sumField(DB.fuel,'金額'),m=sumField(DB.maintenance,'費用'),o=sumField(DB.mods,'費用'),ins=sumField(DB.insurance,'保費'); var dist=totalDistance(); return {fuel:f,maint:m,mod:o,ins:ins,total:f+m+o+ins,dist:dist,fuelKm:dist>0?r2(f/dist):0,totalKm:dist>0?r2((f+m+o+ins)/dist):0}; }
-function monthsBack(k){ var arr=[],d=new Date(); for(var i=k-1;i>=0;i--){ var x=new Date(d.getFullYear(),d.getMonth()-i,1); arr.push({y:x.getFullYear(),m:x.getMonth(),label:(x.getMonth()+1)+'月'}); } return arr; }
+function monthsBack(k){ var arr=[],d=new Date(); for(var i=k-1;i>=0;i--){ var x=new Date(d.getFullYear(),d.getMonth()-i,1); arr.push({y:x.getFullYear(),m:x.getMonth(),label:String(x.getFullYear()).slice(2)+'/'+pad(x.getMonth()+1)}); } return arr; }
 function monthEnd(y,m){ return new Date(y,m+1,0,23,59,59); }
 function monthlyKm(ms){ var pts=mileagePoints(); var out=[]; ms.forEach(function(mo){ var a=mileageAt(pts,new Date(mo.y,mo.m,0,23,59,59)), b=mileageAt(pts,monthEnd(mo.y,mo.m)); out.push((a!==null&&b!==null&&b>=a)?(b-a):0); }); return out; }
 
