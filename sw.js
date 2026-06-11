@@ -2,7 +2,7 @@
    外殼快取，讓 App 可離線開啟；資料 API（Apps Script）一律走網路。
    ★ 每次更新 index.html 後，把 CACHE 版本號 +1（例 v1 → v2），手機才會抓到新版。 */
 
-var CACHE = 'car-app-v6';
+var CACHE = 'car-app-v7';
 var SHELL = [
   './',
   './index.html',
