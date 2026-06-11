@@ -175,7 +175,7 @@ canvas{max-height:300px}
   <div id="loader" class="loading"><div class="spin"></div><p style="margin-top:14px">載入中…</p></div>
   <div id="app" style="display:none">
 
-  <!-總覽 ->
+  <!-- 總覽 -->
   <div class="page active" id="page-dash">
     <div class="grid g4">
       <div class="card stat i"><div class="lbl">本月支出</div><div class="num mono">$<span id="sMonth">0</span></div><div class="sub">油費＋保養＋改裝</div></div>
@@ -361,7 +361,7 @@ canvas{max-height:300px}
 
 <script>
 /* ════════ 設定 ════════ */
-var API_URL = 'https://script.google.com/macros/s/AKfycbxR1vBzPP7rG5G9RrLBdQi0pQfJRrUlUCPLl7_ILpJoL4O_9yYl69VYX0n_vZAQSZw8Tw/exec' 
+var API_URL = 'https://script.google.com/macros/s/AKfycbxR1vBzPP7rG5G9RrLBdQi0pQfJRrUlUCPLl7_ILpJoL4O_9yYl69VYX0n_vZAQSZw8Tw/exec';
 var DEMO = !API_URL || API_URL.indexOf('script.google.com') === -1;
 var DB = { settings:{}, cycles:[], fuel:[], maintenance:[], insurance:[], mods:[] };
 var charts = {};
@@ -410,9 +410,27 @@ function demoData(){return{
 /* ════════ 載入 ════════ */
 function load(){
   if(DEMO){ DB=demoData(); document.getElementById('demoBar').style.display='block'; renderAll(); return; }
-  fetch(API_URL+'?action=all').then(function(r){return r.json()}).then(function(d){
-    if(d.status==='success'){ DB=d; renderAll(); } else toast('載入失敗：'+(d.message||''));
-  }).catch(function(e){ toast('連線失敗，請檢查 API 網址'); console.log(e); });
+  var done=false;
+  var timer=setTimeout(function(){ if(!done) showError('連線逾時（超過 15 秒沒回應）。請確認 Apps Script 已「部署為網頁應用程式」，且存取權設為「任何人」。'); }, 15000);
+  fetch(API_URL+'?action=all',{redirect:'follow'})
+    .then(function(r){ return r.text(); })
+    .then(function(txt){
+      done=true; clearTimeout(timer);
+      var d; try{ d=JSON.parse(txt); }catch(e){
+        showError('後端回傳的不是資料（多半是部署存取權不是「任何人」，或網址不是 /exec 結尾、已失效）。'); return;
+      }
+      if(d.status==='success'){ DB=d; renderAll(); }
+      else showError('後端回應：'+(d.message||'未知錯誤')+'<br>若是「找不到工作表」，請先到 Apps Script 執行一次 initSheets()。');
+    })
+    .catch(function(e){ done=true; clearTimeout(timer); showError('連線失敗，請檢查 API 網址與網路。'); console.log(e); });
+}
+function showError(msg){
+  var l=document.getElementById('loader'); if(!l)return;
+  l.innerHTML='<div style="max-width:440px;margin:0 auto;text-align:center">'
+    +'<div style="font-size:36px">⚠️</div>'
+    +'<p style="margin:12px 0 6px;font-weight:700;color:var(--ink);font-size:16px">無法載入資料</p>'
+    +'<p style="font-size:13px;color:var(--ink2);line-height:1.8">'+msg+'</p>'
+    +'<button class="btn" style="margin-top:18px" onclick="location.reload()">重新整理再試</button></div>';
 }
 function renderAll(){
   document.getElementById('loader').style.display='none';
