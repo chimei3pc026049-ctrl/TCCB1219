@@ -109,9 +109,11 @@ table.data tr:hover td{background:var(--surface2)}
 .del{color:var(--rust);cursor:pointer;font-size:12px;opacity:.65}
 .del:hover{opacity:1;text-decoration:underline}
 .empty{text-align:center;color:var(--ink3);padding:34px;font-size:13px}
-.mitem{display:flex;gap:8px;align-items:center;margin-bottom:8px}
-.mitem .mi-item{flex:2}
-.mitem .mi-cost{flex:1;max-width:150px}
+.mitem{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.mitem .mi-item{flex:2;min-width:130px}
+.mitem .mi-price{flex:1;max-width:110px;min-width:80px}
+.mitem .mi-qty{flex:1;max-width:90px;min-width:70px}
+.mitem .mi-cost{flex:1;max-width:120px;min-width:90px}
 .mi-del{color:var(--rust);cursor:pointer;font-size:12px;opacity:.6;white-space:nowrap;padding:0 4px}
 .mi-del:hover{opacity:1;text-decoration:underline}
 
@@ -261,8 +263,15 @@ canvas{max-height:300px}
         <div class="field full"><label>備註</label><input id="m_note" placeholder="選填（套用到本次所有項目）"></div>
       </div>
       <div style="margin-top:16px">
-        <label style="font-size:11.5px;color:var(--ink2);font-weight:500">保養項目（可一次多筆，共用上方日期／里程／店家）</label>
-        <div id="maintItems" style="margin-top:8px"></div>
+        <label style="font-size:11.5px;color:var(--ink2);font-weight:500">保養項目（可一次多筆，共用上方日期／里程／店家；小計＝單價×數量，自動計算）</label>
+        <div class="mitem" style="margin-top:8px;margin-bottom:2px;flex-wrap:nowrap">
+          <span class="mi-item" style="font-size:10.5px;color:var(--ink3)">項目</span>
+          <span class="mi-price" style="font-size:10.5px;color:var(--ink3)">單價</span>
+          <span class="mi-qty" style="font-size:10.5px;color:var(--ink3)">數量</span>
+          <span class="mi-cost" style="font-size:10.5px;color:var(--ink3)">小計</span>
+          <span class="mi-del" style="visibility:hidden">移除</span>
+        </div>
+        <div id="maintItems"></div>
         <button class="btn ghost sm" id="maintAddBtn" type="button" onclick="addMaintItem()">＋ 再加一項</button>
       </div>
       <div class="btn-row"><button class="btn" id="btn_maint" onclick="addMaint()">新增紀錄</button><button class="btn ghost" id="cancel_maint" onclick="cancelEdit('maint')" style="display:none">取消編輯</button></div>
@@ -271,7 +280,7 @@ canvas{max-height:300px}
     <div class="sect">各項目保養狀態<span class="ln"></span></div>
     <div class="status-grid" id="maintStatus"></div>
     <div class="sect">保養紀錄<span class="ln"></span></div>
-    <div class="tbl-wrap"><table class="data"><thead><tr><th>日期</th><th>里程</th><th>項目</th><th>費用</th><th>店家</th><th>備註</th><th></th></tr></thead><tbody id="maintBody"></tbody></table></div>
+    <div class="tbl-wrap"><table class="data"><thead><tr><th>日期</th><th>里程</th><th>項目</th><th>單價</th><th>數量</th><th>小計</th><th>店家</th><th>備註</th><th></th></tr></thead><tbody id="maintBody"></tbody></table></div>
   </div>
 
   <!-- 保養週期 -->
@@ -579,7 +588,7 @@ function renderFuel(){
 }
 function renderMaint(){
   var rows=DB.maintenance.slice().sort(srtDate);
-  document.getElementById('maintBody').innerHTML=rows.length?rows.map(function(r){return tr([r['日期'],fmt(r['里程']),r['項目'],'$'+fmt(r['費用']),r['店家']||'-',r['備註']||'-'],'maint',r.id);}).join(''):emptyRow(7);
+  document.getElementById('maintBody').innerHTML=rows.length?rows.map(function(r){var pr=n(r['單價']),q=n(r['數量']);return tr([r['日期'],fmt(r['里程']),r['項目'],pr>0?('$'+pr):'-',q>0?q:'-','$'+fmt(r['費用']),r['店家']||'-',r['備註']||'-'],'maint',r.id);}).join(''):emptyRow(9);
   var rem=calcReminders();
   document.getElementById('maintStatus').innerHTML=rem.maint.map(function(m){
     var cls=m.level==='overdue'?'over':(m.level==='due'?'due':(m.level==='unknown'?'':'ok'));
@@ -616,19 +625,30 @@ function addMaint(){
   if(!items.length){toast('請至少填一個項目（項目欄不可空白）');return;}
   if(editing.maint){
     var it=items[0];
-    var p={action:'update',cat:'maint',id:editing.maint,date:date,mileage:mileage,item:it.item,cost:it.cost,shop:shop,note:note};
+    var p={action:'update',cat:'maint',id:editing.maint,date:date,mileage:mileage,item:it.item,price:it.price,qty:it.qty,cost:it.cost,shop:shop,note:note};
     if(DEMO){ demoUpdate(p); resetMaintForm(); toast('（示範）已更新'); renderAll(); return; }
     sendJson(p,function(){ resetMaintForm(); load(); }); return;
   }
-  if(DEMO){ items.forEach(function(it){ demoInsert({action:'addMaint',date:date,mileage:mileage,item:it.item,cost:it.cost,shop:shop,note:note}); }); resetMaintForm(); toast('（示範）已新增 '+items.length+' 筆'); renderAll(); return; }
+  if(DEMO){ items.forEach(function(it){ demoInsert({action:'addMaint',date:date,mileage:mileage,item:it.item,price:it.price,qty:it.qty,cost:it.cost,shop:shop,note:note}); }); resetMaintForm(); toast('（示範）已新增 '+items.length+' 筆'); renderAll(); return; }
   sendJson({action:'addMaintBatch',date:date,mileage:mileage,shop:shop,note:note,items:items},function(){ resetMaintForm(); load(); });
 }
 function resetMaintForm(){ editing.maint=null; updateFormMode('maint'); clearFields(['m_mileage','m_shop','m_note']); resetDates(); renderMaintItems([]); }
-function renderMaintItems(rows){ if(!rows||!rows.length) rows=[{item:'',cost:''}]; var c=document.getElementById('maintItems'); if(!c)return; c.innerHTML=''; rows.forEach(function(r){ c.appendChild(makeMaintRow(r.item,r.cost)); }); }
-function makeMaintRow(item,cost){ var d=document.createElement('div'); d.className='mitem'; var ic=document.createElement('input'); ic.className='mi-item'; ic.placeholder='項目，例 機油'; ic.value=item||''; var cc=document.createElement('input'); cc.className='mi-cost'; cc.type='number'; cc.placeholder='費用'; cc.value=(cost!==undefined&&cost!==null&&cost!=='')?cost:''; var x=document.createElement('span'); x.className='mi-del'; x.textContent='移除'; x.onclick=function(){ removeMaintItem(x); }; d.appendChild(ic); d.appendChild(cc); d.appendChild(x); return d; }
-function addMaintItem(){ document.getElementById('maintItems').appendChild(makeMaintRow('','')); }
-function removeMaintItem(el){ var c=document.getElementById('maintItems'); var row=el.parentNode; if(c.children.length<=1){ row.querySelector('.mi-item').value=''; row.querySelector('.mi-cost').value=''; return; } c.removeChild(row); }
-function collectMaintItems(){ var out=[]; [].slice.call(document.querySelectorAll('#maintItems .mitem')).forEach(function(row){ var item=row.querySelector('.mi-item').value.trim(); var cost=row.querySelector('.mi-cost').value; if(item) out.push({item:item,cost:cost}); }); return out; }
+function renderMaintItems(rows){ if(!rows||!rows.length) rows=[{item:'',price:'',qty:''}]; var c=document.getElementById('maintItems'); if(!c)return; c.innerHTML=''; rows.forEach(function(r){ c.appendChild(makeMaintRow(r.item,r.price,r.qty,r.cost)); }); }
+function makeMaintRow(item,price,qty,cost){
+  var d=document.createElement('div'); d.className='mitem';
+  var ic=document.createElement('input'); ic.className='mi-item'; ic.placeholder='項目，例 機油'; ic.value=item||'';
+  var pc=document.createElement('input'); pc.className='mi-price'; pc.type='number'; pc.step='0.01'; pc.placeholder='單價'; pc.value=(price!==undefined&&price!==null&&price!=='')?price:'';
+  var qc=document.createElement('input'); qc.className='mi-qty'; qc.type='number'; qc.step='0.1'; qc.placeholder='數量'; qc.value=(qty!==undefined&&qty!==null&&qty!=='')?qty:'';
+  var cc=document.createElement('input'); cc.className='mi-cost'; cc.type='number'; cc.placeholder='小計'; cc.readOnly=true; cc.style.background='var(--line2)'; cc.style.color='var(--ink2)'; cc.value=(cost!==undefined&&cost!==null&&cost!=='')?cost:'';
+  var recalc=function(){ var p=n(pc.value),q=n(qc.value); cc.value=(p>0&&q>0)?Math.round(p*q*100)/100:(p>0?p:''); };
+  pc.oninput=recalc; qc.oninput=recalc;
+  if(!cc.value) recalc();
+  var x=document.createElement('span'); x.className='mi-del'; x.textContent='移除'; x.onclick=function(){ removeMaintItem(x); };
+  d.appendChild(ic); d.appendChild(pc); d.appendChild(qc); d.appendChild(cc); d.appendChild(x); return d;
+}
+function addMaintItem(){ document.getElementById('maintItems').appendChild(makeMaintRow('','','','')); }
+function removeMaintItem(el){ var c=document.getElementById('maintItems'); var row=el.parentNode; if(c.children.length<=1){ [].slice.call(row.querySelectorAll('input')).forEach(function(i){i.value=''}); return; } c.removeChild(row); }
+function collectMaintItems(){ var out=[]; [].slice.call(document.querySelectorAll('#maintItems .mitem')).forEach(function(row){ var item=row.querySelector('.mi-item').value.trim(); var price=row.querySelector('.mi-price').value; var qty=row.querySelector('.mi-qty').value; var cost=row.querySelector('.mi-cost').value; if(item) out.push({item:item,price:price,qty:qty,cost:cost}); }); return out; }
 function sendJson(p,cb){ fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(p)}).then(function(r){return r.json()}).then(function(d){ toast(d.message||'完成'); if(d.status==='success') cb(d); }).catch(function(e){ toast('連線失敗'); console.log(e); }); }
 function addIns(){ var p={action:'addIns',company:val('i_company'),type:val('i_type'),premium:val('i_premium'),start:fromInput('i_start'),expire:fromInput('i_expire'),note:val('i_note')}; if(!p.expire||!p.type){toast('請填險種與到期日');return;} if(editing.ins){p.action='update';p.cat='ins';p.id=editing.ins;} post(p,['i_company','i_type','i_premium','i_start','i_expire','i_note'],'ins'); }
 function addMod(){ var p={action:'addMod',date:fromInput('d_date'),mileage:val('d_mileage'),item:val('d_item'),cost:val('d_cost'),shop:val('d_shop'),note:val('d_note')}; if(!p.date||!p.item){toast('請填日期與項目');return;} if(editing.mod){p.action='update';p.cat='mod';p.id=editing.mod;} post(p,['d_mileage','d_item','d_cost','d_shop','d_note'],'mod'); }
@@ -640,13 +660,13 @@ function post(p,clearIds,cat){
 }
 function demoInsert(p){ var id='x'+Date.now();
   if(p.action==='addFuel'){var u=n(p.liter)>0?r2(n(p.amount)/n(p.liter)):'';DB.fuel.push({id:id,日期:p.date,里程:n(p.mileage),公升:n(p.liter),金額:n(p.amount),單價:u,油站:p.station,油號:p.octane,備註:p.note});bump(p.mileage);}
-  if(p.action==='addMaint'){DB.maintenance.push({id:id,日期:p.date,里程:n(p.mileage),項目:p.item,費用:n(p.cost),店家:p.shop,備註:p.note});bump(p.mileage);}
+  if(p.action==='addMaint'){DB.maintenance.push({id:id,日期:p.date,里程:n(p.mileage),項目:p.item,單價:n(p.price),數量:n(p.qty),費用:n(p.cost),店家:p.shop,備註:p.note});bump(p.mileage);}
   if(p.action==='addIns'){DB.insurance.push({id:id,保險公司:p.company,險種:p.type,保費:n(p.premium),起保日:p.start,到期日:p.expire,備註:p.note});}
   if(p.action==='addMod'){DB.mods.push({id:id,日期:p.date,里程:n(p.mileage),項目:p.item,費用:n(p.cost),店家:p.shop,備註:p.note});bump(p.mileage);}
 }
 function demoUpdate(p){ var r=findRec(p.cat,p.id); if(!r)return;
   if(p.cat==='fuel'){r['日期']=p.date;r['里程']=n(p.mileage);r['公升']=n(p.liter);r['金額']=n(p.amount);r['單價']=n(p.liter)>0?r2(n(p.amount)/n(p.liter)):'';r['油站']=p.station;r['油號']=p.octane;r['備註']=p.note;bump(p.mileage);}
-  if(p.cat==='maint'){r['日期']=p.date;r['里程']=n(p.mileage);r['項目']=p.item;r['費用']=n(p.cost);r['店家']=p.shop;r['備註']=p.note;bump(p.mileage);}
+  if(p.cat==='maint'){r['日期']=p.date;r['里程']=n(p.mileage);r['項目']=p.item;r['單價']=n(p.price);r['數量']=n(p.qty);r['費用']=n(p.cost);r['店家']=p.shop;r['備註']=p.note;bump(p.mileage);}
   if(p.cat==='ins'){r['保險公司']=p.company;r['險種']=p.type;r['保費']=n(p.premium);r['起保日']=p.start;r['到期日']=p.expire;r['備註']=p.note;}
   if(p.cat==='mod'){r['日期']=p.date;r['里程']=n(p.mileage);r['項目']=p.item;r['費用']=n(p.cost);r['店家']=p.shop;r['備註']=p.note;bump(p.mileage);}
 }
@@ -657,7 +677,7 @@ function findRec(cat,id){ var arr={fuel:DB.fuel,maint:DB.maintenance,ins:DB.insu
 function editRec(cat,id){
   var r=findRec(cat,id); if(!r){toast('找不到紀錄');return;}
   if(cat==='fuel'){ setv('f_date',toInput(r['日期']));setv('f_mileage',r['里程']);setv('f_liter',r['公升']);setv('f_unit',r['單價']);setv('f_amount',r['金額']);setv('f_station',r['油站']);document.getElementById('f_octane').value=r['油號']||'95+';setv('f_note',r['備註']); }
-  else if(cat==='maint'){ setv('m_date',toInput(r['日期']));setv('m_mileage',r['里程']);setv('m_shop',r['店家']);setv('m_note',r['備註']); renderMaintItems([{item:r['項目'],cost:r['費用']}]); }
+  else if(cat==='maint'){ setv('m_date',toInput(r['日期']));setv('m_mileage',r['里程']);setv('m_shop',r['店家']);setv('m_note',r['備註']); renderMaintItems([{item:r['項目'],price:r['單價'],qty:r['數量'],cost:r['費用']}]); }
   else if(cat==='ins'){ setv('i_company',r['保險公司']);setv('i_type',r['險種']);setv('i_premium',r['保費']);setv('i_start',toInput(r['起保日']));setv('i_expire',toInput(r['到期日']));setv('i_note',r['備註']); }
   else if(cat==='mod'){ setv('d_date',toInput(r['日期']));setv('d_mileage',r['里程']);setv('d_item',r['項目']);setv('d_cost',r['費用']);setv('d_shop',r['店家']);setv('d_note',r['備註']); }
   editing[cat]=id; updateFormMode(cat); switchTab(cat); window.scrollTo({top:0,behavior:'smooth'});
