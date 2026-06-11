@@ -109,6 +109,11 @@ table.data tr:hover td{background:var(--surface2)}
 .del{color:var(--rust);cursor:pointer;font-size:12px;opacity:.65}
 .del:hover{opacity:1;text-decoration:underline}
 .empty{text-align:center;color:var(--ink3);padding:34px;font-size:13px}
+.mitem{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.mitem .mi-item{flex:2}
+.mitem .mi-cost{flex:1;max-width:150px}
+.mi-del{color:var(--rust);cursor:pointer;font-size:12px;opacity:.6;white-space:nowrap;padding:0 4px}
+.mi-del:hover{opacity:1;text-decoration:underline}
 
 /* reminders */
 .rem{display:flex;align-items:center;gap:12px;padding:13px 15px;border-radius:12px;border:1px solid var(--line);margin-bottom:9px;background:var(--surface)}
@@ -232,10 +237,11 @@ canvas{max-height:300px}
       <div class="form-grid">
         <div class="field"><label>日期</label><input type="date" id="f_date"></div>
         <div class="field"><label>里程 (km)</label><input type="number" id="f_mileage" placeholder="目前總里程"></div>
-        <div class="field"><label>加油量 (公升)</label><input type="number" step="0.01" id="f_liter" placeholder="例 38.5"></div>
-        <div class="field"><label>金額 (元)</label><input type="number" id="f_amount" placeholder="例 1200"></div>
-        <div class="field"><label>加油站</label><input id="f_station" placeholder="例 中油 / 台塑"></div>
-        <div class="field"><label>油號</label><select id="f_octane"><option value="92">92</option><option value="95" selected>95</option><option value="98">98</option><option value="柴油">柴油</option></select></div>
+        <div class="field"><label>加油量 (公升)</label><input type="number" step="0.01" id="f_liter" placeholder="例 38.5" oninput="recalcFuel()"></div>
+        <div class="field"><label>公升單價 (元/L)</label><input type="number" step="0.1" id="f_unit" placeholder="例 31.4" oninput="recalcFuel()"></div>
+        <div class="field"><label>總金額（自動）</label><input type="number" id="f_amount" placeholder="自動計算" readonly style="background:var(--line2);color:var(--ink2)"></div>
+        <div class="field"><label>加油站</label><input id="f_station" value="台塑" placeholder="例 中油 / 台塑"></div>
+        <div class="field"><label>油號</label><select id="f_octane"><option value="95+" selected>95+</option><option value="92">92</option><option value="95">95</option><option value="98">98</option><option value="柴油">柴油</option></select></div>
         <div class="field full"><label>備註</label><input id="f_note" placeholder="選填"></div>
       </div>
       <div class="btn-row"><button class="btn" id="btn_fuel" onclick="addFuel()">新增紀錄</button><button class="btn ghost" id="cancel_fuel" onclick="cancelEdit('fuel')" style="display:none">取消編輯</button></div>
@@ -251,13 +257,16 @@ canvas{max-height:300px}
       <div class="form-grid">
         <div class="field"><label>日期</label><input type="date" id="m_date"></div>
         <div class="field"><label>里程 (km)</label><input type="number" id="m_mileage"></div>
-        <div class="field"><label>項目</label><input id="m_item" placeholder="自行輸入，例 機油"></div>
-        <div class="field"><label>費用 (元)</label><input type="number" id="m_cost"></div>
         <div class="field"><label>店家</label><input id="m_shop" placeholder="選填"></div>
-        <div class="field full"><label>備註</label><input id="m_note" placeholder="選填"></div>
+        <div class="field full"><label>備註</label><input id="m_note" placeholder="選填（套用到本次所有項目）"></div>
+      </div>
+      <div style="margin-top:16px">
+        <label style="font-size:11.5px;color:var(--ink2);font-weight:500">保養項目（可一次多筆，共用上方日期／里程／店家）</label>
+        <div id="maintItems" style="margin-top:8px"></div>
+        <button class="btn ghost sm" id="maintAddBtn" type="button" onclick="addMaintItem()">＋ 再加一項</button>
       </div>
       <div class="btn-row"><button class="btn" id="btn_maint" onclick="addMaint()">新增紀錄</button><button class="btn ghost" id="cancel_maint" onclick="cancelEdit('maint')" style="display:none">取消編輯</button></div>
-      <p class="sub-note" style="margin:14px 0 0">提示：項目名稱若與「保養週期」分頁的項目相同（例「機油」），系統就會自動套用對應的更換週期來提醒。</p>
+      <p class="sub-note" style="margin:14px 0 0">提示：項目名稱若與「保養週期」分頁的項目相同（例「機油」），系統就會自動套用對應的更換週期來提醒。一次填多項時，每一項都會各自獨立判斷。</p>
     </div>
     <div class="sect">各項目保養狀態<span class="ln"></span></div>
     <div class="status-grid" id="maintStatus"></div>
@@ -301,7 +310,7 @@ canvas{max-height:300px}
       <div class="form-title">🛡️ 新增 / 編輯保單<span class="edit-hint" id="hint_ins">編輯中</span></div>
       <div class="form-grid">
         <div class="field"><label>保險公司</label><input id="i_company" placeholder="例 富邦"></div>
-        <div class="field"><label>險種</label><select id="i_type"><option>強制險</option><option>第三人責任險</option><option>車體險</option><option>竊盜險</option><option>乘客險</option><option>其他</option></select></div>
+        <div class="field"><label>險種</label><input id="i_type" placeholder="自行輸入，例 強制險"></div>
         <div class="field"><label>保費 (元)</label><input type="number" id="i_premium"></div>
         <div class="field"><label>起保日</label><input type="date" id="i_start"></div>
         <div class="field"><label>到期日</label><input type="date" id="i_expire"></div>
@@ -598,9 +607,30 @@ function renderMod(){
 }
 
 /* ════════ 新增 / 更新 ════════ */
-function addFuel(){ var p={action:'addFuel',date:fromInput('f_date'),mileage:val('f_mileage'),liter:val('f_liter'),amount:val('f_amount'),station:val('f_station'),octane:val('f_octane'),note:val('f_note')}; if(!p.date||!p.liter||!p.amount){toast('請填日期、加油量、金額');return;} if(editing.fuel){p.action='update';p.cat='fuel';p.id=editing.fuel;} post(p,['f_mileage','f_liter','f_amount','f_station','f_note'],'fuel'); }
-function addMaint(){ var p={action:'addMaint',date:fromInput('m_date'),mileage:val('m_mileage'),item:val('m_item'),cost:val('m_cost'),shop:val('m_shop'),note:val('m_note')}; if(!p.date||!p.item){toast('請填日期與項目');return;} if(editing.maint){p.action='update';p.cat='maint';p.id=editing.maint;} post(p,['m_mileage','m_item','m_cost','m_shop','m_note'],'maint'); }
-function addIns(){ var p={action:'addIns',company:val('i_company'),type:val('i_type'),premium:val('i_premium'),start:fromInput('i_start'),expire:fromInput('i_expire'),note:val('i_note')}; if(!p.expire){toast('請填到期日');return;} if(editing.ins){p.action='update';p.cat='ins';p.id=editing.ins;} post(p,['i_company','i_premium','i_start','i_expire','i_note'],'ins'); }
+function recalcFuel(){ var l=n(val('f_liter')),u=n(val('f_unit')); document.getElementById('f_amount').value=(l>0&&u>0)?Math.round(l*u*100)/100:''; }
+function addFuel(){ var l=n(val('f_liter')),u=n(val('f_unit')); var amount=(l>0&&u>0)?Math.round(l*u*100)/100:0; var p={action:'addFuel',date:fromInput('f_date'),mileage:val('f_mileage'),liter:val('f_liter'),amount:amount,station:val('f_station')||'台塑',octane:val('f_octane'),note:val('f_note')}; if(!p.date||!l||!u){toast('請填日期、加油量、公升單價');return;} if(editing.fuel){p.action='update';p.cat='fuel';p.id=editing.fuel;} post(p,['f_mileage','f_liter','f_unit','f_amount','f_note'],'fuel'); }
+function addMaint(){
+  var date=fromInput('m_date'), mileage=val('m_mileage'), shop=val('m_shop'), note=val('m_note');
+  var items=collectMaintItems();
+  if(!date){toast('請填日期');return;}
+  if(!items.length){toast('請至少填一個項目（項目欄不可空白）');return;}
+  if(editing.maint){
+    var it=items[0];
+    var p={action:'update',cat:'maint',id:editing.maint,date:date,mileage:mileage,item:it.item,cost:it.cost,shop:shop,note:note};
+    if(DEMO){ demoUpdate(p); resetMaintForm(); toast('（示範）已更新'); renderAll(); return; }
+    sendJson(p,function(){ resetMaintForm(); load(); }); return;
+  }
+  if(DEMO){ items.forEach(function(it){ demoInsert({action:'addMaint',date:date,mileage:mileage,item:it.item,cost:it.cost,shop:shop,note:note}); }); resetMaintForm(); toast('（示範）已新增 '+items.length+' 筆'); renderAll(); return; }
+  sendJson({action:'addMaintBatch',date:date,mileage:mileage,shop:shop,note:note,items:items},function(){ resetMaintForm(); load(); });
+}
+function resetMaintForm(){ editing.maint=null; updateFormMode('maint'); clearFields(['m_mileage','m_shop','m_note']); resetDates(); renderMaintItems([]); }
+function renderMaintItems(rows){ if(!rows||!rows.length) rows=[{item:'',cost:''}]; var c=document.getElementById('maintItems'); if(!c)return; c.innerHTML=''; rows.forEach(function(r){ c.appendChild(makeMaintRow(r.item,r.cost)); }); }
+function makeMaintRow(item,cost){ var d=document.createElement('div'); d.className='mitem'; var ic=document.createElement('input'); ic.className='mi-item'; ic.placeholder='項目，例 機油'; ic.value=item||''; var cc=document.createElement('input'); cc.className='mi-cost'; cc.type='number'; cc.placeholder='費用'; cc.value=(cost!==undefined&&cost!==null&&cost!=='')?cost:''; var x=document.createElement('span'); x.className='mi-del'; x.textContent='移除'; x.onclick=function(){ removeMaintItem(x); }; d.appendChild(ic); d.appendChild(cc); d.appendChild(x); return d; }
+function addMaintItem(){ document.getElementById('maintItems').appendChild(makeMaintRow('','')); }
+function removeMaintItem(el){ var c=document.getElementById('maintItems'); var row=el.parentNode; if(c.children.length<=1){ row.querySelector('.mi-item').value=''; row.querySelector('.mi-cost').value=''; return; } c.removeChild(row); }
+function collectMaintItems(){ var out=[]; [].slice.call(document.querySelectorAll('#maintItems .mitem')).forEach(function(row){ var item=row.querySelector('.mi-item').value.trim(); var cost=row.querySelector('.mi-cost').value; if(item) out.push({item:item,cost:cost}); }); return out; }
+function sendJson(p,cb){ fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(p)}).then(function(r){return r.json()}).then(function(d){ toast(d.message||'完成'); if(d.status==='success') cb(d); }).catch(function(e){ toast('連線失敗'); console.log(e); }); }
+function addIns(){ var p={action:'addIns',company:val('i_company'),type:val('i_type'),premium:val('i_premium'),start:fromInput('i_start'),expire:fromInput('i_expire'),note:val('i_note')}; if(!p.expire||!p.type){toast('請填險種與到期日');return;} if(editing.ins){p.action='update';p.cat='ins';p.id=editing.ins;} post(p,['i_company','i_type','i_premium','i_start','i_expire','i_note'],'ins'); }
 function addMod(){ var p={action:'addMod',date:fromInput('d_date'),mileage:val('d_mileage'),item:val('d_item'),cost:val('d_cost'),shop:val('d_shop'),note:val('d_note')}; if(!p.date||!p.item){toast('請填日期與項目');return;} if(editing.mod){p.action='update';p.cat='mod';p.id=editing.mod;} post(p,['d_mileage','d_item','d_cost','d_shop','d_note'],'mod'); }
 
 function post(p,clearIds,cat){
@@ -626,14 +656,14 @@ function bump(m){ if(n(m)>curMileage())DB.settings['目前里程']=n(m); }
 function findRec(cat,id){ var arr={fuel:DB.fuel,maint:DB.maintenance,ins:DB.insurance,mod:DB.mods}[cat]||[]; for(var i=0;i<arr.length;i++) if(String(arr[i].id)===String(id)) return arr[i]; return null; }
 function editRec(cat,id){
   var r=findRec(cat,id); if(!r){toast('找不到紀錄');return;}
-  if(cat==='fuel'){ setv('f_date',toInput(r['日期']));setv('f_mileage',r['里程']);setv('f_liter',r['公升']);setv('f_amount',r['金額']);setv('f_station',r['油站']);document.getElementById('f_octane').value=r['油號']||'95';setv('f_note',r['備註']); }
-  else if(cat==='maint'){ setv('m_date',toInput(r['日期']));setv('m_mileage',r['里程']);setv('m_item',r['項目']);setv('m_cost',r['費用']);setv('m_shop',r['店家']);setv('m_note',r['備註']); }
-  else if(cat==='ins'){ setv('i_company',r['保險公司']);document.getElementById('i_type').value=r['險種']||'強制險';setv('i_premium',r['保費']);setv('i_start',toInput(r['起保日']));setv('i_expire',toInput(r['到期日']));setv('i_note',r['備註']); }
+  if(cat==='fuel'){ setv('f_date',toInput(r['日期']));setv('f_mileage',r['里程']);setv('f_liter',r['公升']);setv('f_unit',r['單價']);setv('f_amount',r['金額']);setv('f_station',r['油站']);document.getElementById('f_octane').value=r['油號']||'95+';setv('f_note',r['備註']); }
+  else if(cat==='maint'){ setv('m_date',toInput(r['日期']));setv('m_mileage',r['里程']);setv('m_shop',r['店家']);setv('m_note',r['備註']); renderMaintItems([{item:r['項目'],cost:r['費用']}]); }
+  else if(cat==='ins'){ setv('i_company',r['保險公司']);setv('i_type',r['險種']);setv('i_premium',r['保費']);setv('i_start',toInput(r['起保日']));setv('i_expire',toInput(r['到期日']));setv('i_note',r['備註']); }
   else if(cat==='mod'){ setv('d_date',toInput(r['日期']));setv('d_mileage',r['里程']);setv('d_item',r['項目']);setv('d_cost',r['費用']);setv('d_shop',r['店家']);setv('d_note',r['備註']); }
   editing[cat]=id; updateFormMode(cat); switchTab(cat); window.scrollTo({top:0,behavior:'smooth'});
 }
-function cancelEdit(cat){ editing[cat]=null; var ids={fuel:['f_mileage','f_liter','f_amount','f_station','f_note'],maint:['m_mileage','m_item','m_cost','m_shop','m_note'],ins:['i_company','i_premium','i_start','i_expire','i_note'],mod:['d_mileage','d_item','d_cost','d_shop','d_note']}[cat]; clearFields(ids); resetDates(); updateFormMode(cat); }
-function updateFormMode(cat){ var btn=document.getElementById('btn_'+cat),c=document.getElementById('cancel_'+cat),h=document.getElementById('hint_'+cat); if(!btn)return; if(editing[cat]){btn.textContent='更新';btn.classList.add('editing');if(c)c.style.display='';if(h)h.classList.add('on');}else{btn.textContent=defaultBtn[cat];btn.classList.remove('editing');if(c)c.style.display='none';if(h)h.classList.remove('on');} }
+function cancelEdit(cat){ if(cat==='maint'){ resetMaintForm(); return; } editing[cat]=null; var ids={fuel:['f_mileage','f_liter','f_unit','f_amount','f_note'],ins:['i_company','i_type','i_premium','i_start','i_expire','i_note'],mod:['d_mileage','d_item','d_cost','d_shop','d_note']}[cat]; clearFields(ids); resetDates(); updateFormMode(cat); }
+function updateFormMode(cat){ var btn=document.getElementById('btn_'+cat),c=document.getElementById('cancel_'+cat),h=document.getElementById('hint_'+cat); if(!btn)return; if(editing[cat]){btn.textContent='更新';btn.classList.add('editing');if(c)c.style.display='';if(h)h.classList.add('on');}else{btn.textContent=defaultBtn[cat];btn.classList.remove('editing');if(c)c.style.display='none';if(h)h.classList.remove('on');} if(cat==='maint'){var ab=document.getElementById('maintAddBtn');if(ab)ab.style.display=editing.maint?'none':'';} }
 function del(sheet,id){ if(!confirm('確定刪除這筆紀錄？'))return; if(DEMO){var k={'油費':'fuel','保養':'maintenance','保險':'insurance','改裝':'mods'}[sheet];DB[k]=DB[k].filter(function(r){return r.id!==id});renderAll();toast('（示範）已刪除');return;} fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'delete',sheet:sheet,id:id})}).then(function(r){return r.json()}).then(function(d){toast(d.message||'已刪除');load();}); }
 
 /* ════════ 設定 / 週期 ════════ */
@@ -681,6 +711,7 @@ function clearChart(id){ if(charts[id]){charts[id].destroy();delete charts[id];}
 /* tabs */
 [].slice.call(document.querySelectorAll('.tab')).forEach(function(t){ t.onclick=function(){ switchTab(t.getAttribute('data-p')); }; });
 resetDates();
+renderMaintItems([]);
 load();
 
 /* ════════ PWA：註冊 Service Worker（需 HTTPS，GitHub Pages 即可） ════════ */
