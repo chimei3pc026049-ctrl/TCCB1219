@@ -192,6 +192,11 @@ canvas{max-height:300px}
     </div>
     <div class="sect">到期提醒<span class="ln"></span></div>
     <div class="card pad" id="remBox"></div>
+
+    <div class="sect">保養儀表板<span class="ln"></span></div>
+    <p class="sub-note">每個保養項目依「保養週期」設定即時判斷：<span style="color:var(--rust);font-weight:600">紅＝已逾期</span>（里程或時間已超過，建議盡快處理）、<span style="color:var(--amber-dot);font-weight:600">黃＝即將到期</span>（進入提前提醒範圍）、<span style="color:var(--emerald);font-weight:600">綠＝正常</span>、灰＝尚無保養紀錄（建議先建立一筆基準）。卡片上顯示距離下次保養還剩多少公里或天數，以先到者為準。</p>
+    <div class="status-grid" id="dashMaintStatus"></div>
+
     <div class="grid g2" style="margin-top:20px">
       <div class="card pad-lg"><div class="chart-h">近 6 個月支出</div><div class="chart-sub">依類別堆疊（元）</div><canvas id="chMonth"></canvas></div>
       <div class="card pad-lg"><div class="chart-h">支出分類占比</div><div class="chart-sub">今年累計</div><canvas id="chPie"></canvas></div>
@@ -379,7 +384,7 @@ canvas{max-height:300px}
 
 <script>
 /* ════════ 設定 ════════ */
-var API_URL = 'https://script.google.com/macros/s/AKfycbxR1vBzPP7rG5G9RrLBdQi0pQfJRrUlUCPLl7_ILpJoL4O_9yYl69VYX0n_vZAQSZw8Tw/exec';
+var API_URL = 'https://script.google.com/macros/s/AKfycbx5DTMbphc5zSHoY8nkJMRzts8DnBogaso61t3Q-2DP4yTK9zZgTOF4qLo407R9zI9CKw/exec';
 var DEMO = !API_URL || API_URL.indexOf('script.google.com') === -1;
 var DB = { settings:{}, cycles:[], fuel:[], maintenance:[], insurance:[], mods:[] };
 var charts = {};
@@ -486,7 +491,10 @@ function calcReminders(){
     if(moC>0&&last.date){ dayR=Math.ceil((addMonths(last.date,moC)-today())/86400000); if(dayR<=0)over=true; else if(dayR<=dayA)due=true; }
     maint.push({item:item,level:over?'overdue':(due?'due':'ok'),kmR:kmR,dayR:dayR});
   });
-  DB.insurance.forEach(function(r){ var exp=pDate(r['到期日']); if(!exp)return; var dr=Math.ceil((exp-today())/86400000); ins.push({type:r['險種'],company:r['保險公司'],expire:r['到期日'],dayR:dr,level:dr<=0?'overdue':(dr<=insA?'due':'ok')}); });
+  // 保險：同險種只看「到期日最新」那張（舊保單已被續保即略過）
+  var latestByType={};
+  DB.insurance.forEach(function(r){ var exp=pDate(r['到期日']); if(!exp)return; var t=String(r['險種']||'').trim()||'未填險種'; if(!latestByType[t]||exp>latestByType[t].exp) latestByType[t]={exp:exp,r:r}; });
+  for(var t in latestByType){ var o=latestByType[t]; var dr=Math.ceil((o.exp-today())/86400000); ins.push({type:o.r['險種'],company:o.r['保險公司'],expire:o.r['到期日'],dayR:dr,level:dr<=0?'overdue':(dr<=insA?'due':'ok')}); }
   return {maint:maint,ins:ins};
 }
 function isEnabled(v){ return v===true||v==='TRUE'||v==='true'||v===1||v==='1'; }
@@ -530,6 +538,7 @@ function renderDash(){
   rem.maint.filter(function(x){return x.level==='due'||x.level==='overdue'}).forEach(function(m){ html+=remRow('🔧',m.item,maintDetail(m),m.level); });
   rem.ins.filter(function(x){return x.level==='due'||x.level==='overdue'}).forEach(function(s){ html+=remRow('🛡️',(s.company?s.company+' ':'')+s.type+'（'+s.expire+'）',s.dayR<=0?('已逾期 '+Math.abs(s.dayR)+' 天'):('倒數 '+s.dayR+' 天'),s.level); });
   box.innerHTML=html||'<div class="all-ok">✓ 目前沒有需要處理的保養或保險項目</div>';
+  renderMaintStatusInto('dashMaintStatus',rem);
   var ms=monthsBack(6); var fuelD=[],mD=[],oD=[];
   ms.forEach(function(mo){ var s=function(rec,fld){var t=0;rec.forEach(function(r){var d=pDate(r['日期']);if(d&&d.getFullYear()===mo.y&&d.getMonth()===mo.m)t+=n(r[fld]);});return t;}; fuelD.push(s(DB.fuel,'金額'));mD.push(s(DB.maintenance,'費用'));oD.push(s(DB.mods,'費用')); });
   mkChart('chMonth','bar',{labels:ms.map(function(x){return x.label}),datasets:[
@@ -586,17 +595,20 @@ function renderFuel(){
     return tr([r['日期'],fmt(r['里程']),r['公升'],'$'+fmt(r['金額']),r['單價'],kpl,r['油站']||'-',r['油號']||'-'],'fuel',r.id);
   }).join(''):emptyRow(9);
 }
-function renderMaint(){
-  var rows=DB.maintenance.slice().sort(srtDate);
-  document.getElementById('maintBody').innerHTML=rows.length?rows.map(function(r){var pr=n(r['單價']),q=n(r['數量']);return tr([r['日期'],fmt(r['里程']),r['項目'],pr>0?('$'+pr):'-',q>0?q:'-','$'+fmt(r['費用']),r['店家']||'-',r['備註']||'-'],'maint',r.id);}).join(''):emptyRow(9);
-  var rem=calcReminders();
-  document.getElementById('maintStatus').innerHTML=rem.maint.map(function(m){
+function renderMaintStatusInto(elId,rem){
+  var el=document.getElementById(elId); if(!el)return;
+  el.innerHTML=rem.maint.map(function(m){
     var cls=m.level==='overdue'?'over':(m.level==='due'?'due':(m.level==='unknown'?'':'ok'));
     var tc=m.level==='overdue'?'over':(m.level==='due'?'due':(m.level==='unknown'?'unk':'ok'));
     var tt=m.level==='overdue'?'已逾期':(m.level==='due'?'即將到期':(m.level==='unknown'?'無紀錄':'正常'));
     var d=m.level==='unknown'?'建議建立首次保養':maintDetail(m);
     return '<div class="ms '+cls+'"><div class="t">'+m.item+'<span class="tag '+tc+'">'+tt+'</span></div><div class="d">'+d+'</div></div>';
   }).join('')||'<div class="empty">尚未設定保養週期</div>';
+}
+function renderMaint(){
+  var rows=DB.maintenance.slice().sort(srtDate);
+  document.getElementById('maintBody').innerHTML=rows.length?rows.map(function(r){var pr=n(r['單價']),q=n(r['數量']);return tr([r['日期'],fmt(r['里程']),r['項目'],pr>0?('$'+pr):'-',q>0?q:'-','$'+fmt(r['費用']),r['店家']||'-',r['備註']||'-'],'maint',r.id);}).join(''):emptyRow(9);
+  renderMaintStatusInto('maintStatus',calcReminders());
 }
 function renderIns(){
   var rows=DB.insurance.slice();
