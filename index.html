@@ -185,7 +185,7 @@ canvas{max-height:300px}
   <!-- 總覽 -->
   <div class="page active" id="page-dash">
     <div class="grid g4">
-      <div class="card stat i"><div class="lbl">本月支出</div><div class="num mono">$<span id="sMonth">0</span></div><div class="sub">油費＋保養＋改裝</div></div>
+      <div class="card stat i"><div class="lbl">本月支出</div><div class="num mono">$<span id="sMonth">0</span></div><div class="sub" id="sMonthCmp">油費＋保養＋改裝</div></div>
       <div class="card stat s"><div class="lbl">今年累計</div><div class="num mono">$<span id="sYear">0</span></div><div class="sub">含保費</div></div>
       <div class="card stat t"><div class="lbl">平均油耗</div><div class="num mono"><span id="sKpl">--</span> <small>km/L</small></div><div class="sub">近期平均</div></div>
       <div class="card stat a"><div class="lbl">待處理提醒</div><div class="num mono"><span id="sRem">0</span> <small>項</small></div><div class="sub">保養＋保險到期</div></div>
@@ -205,6 +205,26 @@ canvas{max-height:300px}
 
   <!-- 分析 -->
   <div class="page" id="page-ana">
+    <div class="card pad-lg" style="margin-bottom:18px">
+      <div class="form-title">🔍 期間查詢</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <select id="q_year" style="width:auto;min-width:110px" onchange="renderPeriod()"></select>
+        <select id="q_month" style="width:auto;min-width:110px" onchange="renderPeriod()">
+          <option value="">全年</option>
+          <option value="0">1月</option><option value="1">2月</option><option value="2">3月</option><option value="3">4月</option>
+          <option value="4">5月</option><option value="5">6月</option><option value="6">7月</option><option value="7">8月</option>
+          <option value="8">9月</option><option value="9">10月</option><option value="10">11月</option><option value="11">12月</option>
+        </select>
+        <span class="sub-note" style="margin:0">選擇年份與月份查看該期間統計（月份選「全年」即看整年）</span>
+      </div>
+      <div class="grid g4" style="margin-top:16px">
+        <div class="card stat i"><div class="lbl">期間總支出</div><div class="num mono" style="font-size:21px">$<span id="q_total">0</span></div><div class="sub" id="q_totalCmp">—</div></div>
+        <div class="card stat t"><div class="lbl">油費</div><div class="num mono" style="font-size:21px">$<span id="q_fuel">0</span></div><div class="sub" id="q_fuelSub">—</div></div>
+        <div class="card stat a"><div class="lbl">保養＋改裝</div><div class="num mono" style="font-size:21px">$<span id="q_mm">0</span></div><div class="sub" id="q_mmSub">—</div></div>
+        <div class="card stat s"><div class="lbl">行駛里程</div><div class="num mono" style="font-size:21px"><span id="q_km">0</span> <small>km</small></div><div class="sub" id="q_kmCmp">—</div></div>
+      </div>
+      <p class="sub-note" style="margin:12px 0 0" id="q_extra"></p>
+    </div>
     <div class="grid g4">
       <div class="card stat i"><div class="lbl">月均行駛</div><div class="num mono"><span id="aMonthKm">--</span> <small>km</small></div><div class="sub">每月平均公里數</div></div>
       <div class="card stat i"><div class="lbl">日均行駛</div><div class="num mono"><span id="aDayKm">--</span> <small>km</small></div><div class="sub">每日平均</div></div>
@@ -214,6 +234,12 @@ canvas{max-height:300px}
       <div class="card stat e"><div class="lbl">每公里總成本</div><div class="num mono">$<span id="aTotalKm">--</span></div><div class="sub">含保養改裝保險</div></div>
       <div class="card stat s"><div class="lbl">加油頻率</div><div class="num mono"><span id="aFreq">--</span> <small>天/次</small></div><div class="sub">平均間隔</div></div>
       <div class="card stat s"><div class="lbl">累計行駛</div><div class="num mono"><span id="aTotalKm2">--</span> <small>km</small></div><div class="sub">紀錄區間</div></div>
+    </div>
+
+    <div class="sect">本月比較<span class="ln"></span></div>
+    <p class="sub-note">本月（截至今日）與上月、去年同月的對照。支出類：<span style="color:var(--rust);font-weight:600">紅▲＝增加</span>、<span style="color:var(--emerald);font-weight:600">綠▼＝減少</span>；行駛里程以藍色呈現（多開少開無好壞）。前期為 0 時不計算成長率。</p>
+    <div class="card pad-lg">
+      <div class="tbl-wrap" style="border:none;box-shadow:none"><table class="data" style="min-width:600px"><thead><tr><th>指標</th><th>本月</th><th>上月</th><th>月增率</th><th>去年同月</th><th>年增率</th></tr></thead><tbody id="cmpBody"></tbody></table></div>
     </div>
 
     <div class="sect">每月行駛公里數<span class="ln"></span></div>
@@ -459,6 +485,7 @@ function renderAll(){
   document.getElementById('loader').style.display='none';
   document.getElementById('app').style.display='block';
   renderHeader(); renderDash(); renderAnalysis();
+  initPeriodSelectors(); renderPeriod();
   renderFuel(); renderMaint(); renderIns(); renderMod(); renderSettings();
 }
 
@@ -520,6 +547,22 @@ function sumField(rec,fld){ var t=0; rec.forEach(function(r){t+=n(r[fld])}); ret
 function costStats(){ var f=sumField(DB.fuel,'金額'),m=sumField(DB.maintenance,'費用'),o=sumField(DB.mods,'費用'),ins=sumField(DB.insurance,'保費'); var dist=totalDistance(); return {fuel:f,maint:m,mod:o,ins:ins,total:f+m+o+ins,dist:dist,fuelKm:dist>0?r2(f/dist):0,totalKm:dist>0?r2((f+m+o+ins)/dist):0}; }
 function monthsBack(k){ var arr=[],d=new Date(); for(var i=k-1;i>=0;i--){ var x=new Date(d.getFullYear(),d.getMonth()-i,1); arr.push({y:x.getFullYear(),m:x.getMonth(),label:String(x.getFullYear()).slice(2)+'/'+pad(x.getMonth()+1)}); } return arr; }
 function monthEnd(y,m){ return new Date(y,m+1,0,23,59,59); }
+function monthAgg(y,m){
+  var s=function(rec,fld){var t=0;rec.forEach(function(r){var d=pDate(r['日期']);if(d&&d.getFullYear()===y&&d.getMonth()===m)t+=n(r[fld]);});return t;};
+  var fuel=s(DB.fuel,'金額'), maint=s(DB.maintenance,'費用'), mod=s(DB.mods,'費用');
+  var km=monthlyKm([{y:y,m:m}])[0]||0;
+  return {fuel:fuel,maint:maint,mod:mod,total:fuel+maint+mod,km:km};
+}
+function prevMonth(y,m){ return m===0?{y:y-1,m:11}:{y:y,m:m-1}; }
+function growthPct(cur,prev){ if(!(prev>0)) return null; return Math.round((cur-prev)/prev*1000)/10; }
+function growthHtml(cur,prev,neutral){
+  var p=growthPct(cur,prev);
+  if(p===null) return '<span style="color:var(--ink3)">—</span>';
+  var up=p>=0;
+  var color = p===0?'var(--ink3)':(neutral?'var(--indigo)':(up?'var(--rust)':'var(--emerald)'));
+  var arrow = p===0?'—':(up?'▲':'▼');
+  return '<span style="color:'+color+';font-weight:700">'+arrow+' '+Math.abs(p)+'%</span>';
+}
 function monthlyKm(ms){ var pts=mileagePoints(); var out=[]; ms.forEach(function(mo){ var a=mileageAt(pts,new Date(mo.y,mo.m,0,23,59,59)), b=mileageAt(pts,monthEnd(mo.y,mo.m)); out.push((a!==null&&b!==null&&b>=a)?(b-a):0); }); return out; }
 
 /* ════════ Header / 總覽 ════════ */
@@ -529,6 +572,11 @@ function renderDash(){
   var f=spend(DB.fuel,'金額'),mn=spend(DB.maintenance,'費用'),md=spend(DB.mods,'費用');
   var insY=0; DB.insurance.forEach(function(r){var d=pDate(r['起保日']); if(d&&d.getFullYear()===new Date().getFullYear())insY+=n(r['保費']);});
   document.getElementById('sMonth').textContent=fmt(f.m+mn.m+md.m);
+  // 本月 vs 上月 vs 去年同期
+  var nowD=new Date(), cy=nowD.getFullYear(), cmth=nowD.getMonth();
+  var curA=monthAgg(cy,cmth), pv=prevMonth(cy,cmth), prevA=monthAgg(pv.y,pv.m), yoyA=monthAgg(cy-1,cmth);
+  var cmpEl=document.getElementById('sMonthCmp');
+  if(cmpEl) cmpEl.innerHTML='較上月 '+growthHtml(curA.total,prevA.total)+'　去年同期 '+growthHtml(curA.total,yoyA.total);
   document.getElementById('sYear').textContent=fmt(f.y+mn.y+md.y+insY);
   document.getElementById('sKpl').textContent=fuelStats().kplAvg!==null?fuelStats().kplAvg:'--';
   var rem=calcReminders();
@@ -559,6 +607,24 @@ function renderAnalysis(){
   setT('aKplRange',(fs.best!==null)?('最佳 '+fs.best+' / 最差 '+fs.worst):'—');
   setT('aPrice',fs.avgPrice||'--'); setT('aFuelKm',cs.fuelKm||'--'); setT('aTotalKm',cs.totalKm||'--');
   setT('aFreq',fs.freq!==null?fs.freq:'--'); setT('aTotalKm2',dist?fmt(dist):'--');
+  // 本月比較表
+  var nowD=new Date(), cy=nowD.getFullYear(), cmth=nowD.getMonth();
+  var curA=monthAgg(cy,cmth), pv=prevMonth(cy,cmth), prevA=monthAgg(pv.y,pv.m), yoyA=monthAgg(cy-1,cmth);
+  function cmpRow(name,cur,prev,yoy,unit,neutral){
+    var u=unit||'';
+    return '<tr><td style="font-weight:600">'+name+'</td>'
+      +'<td class="mono">'+(u==='km'?fmt(cur)+' km':'$'+fmt(cur))+'</td>'
+      +'<td class="mono">'+(u==='km'?fmt(prev)+' km':'$'+fmt(prev))+'</td>'
+      +'<td>'+growthHtml(cur,prev,neutral)+'</td>'
+      +'<td class="mono">'+(u==='km'?fmt(yoy)+' km':'$'+fmt(yoy))+'</td>'
+      +'<td>'+growthHtml(cur,yoy,neutral)+'</td></tr>';
+  }
+  var cmpEl=document.getElementById('cmpBody');
+  if(cmpEl) cmpEl.innerHTML=
+    cmpRow('總支出（油＋保＋改）',curA.total,prevA.total,yoyA.total)
+    +cmpRow('油費',curA.fuel,prevA.fuel,yoyA.fuel)
+    +cmpRow('保養＋改裝',curA.maint+curA.mod,prevA.maint+prevA.mod,yoyA.maint+yoyA.mod)
+    +cmpRow('行駛里程',curA.km,prevA.km,yoyA.km,'km',true);
   var ms12=monthsBack(12); var km12=monthlyKm(ms12);
   mkChart('chKm','bar',{labels:ms12.map(function(x){return x.label}),datasets:[{label:'行駛 km',data:km12,backgroundColor:'#4f46e5',borderRadius:5}]},{});
   if(fs.kpl.length){ var avgLine=fs.kpl.map(function(){return fs.kplAvg});
@@ -584,6 +650,54 @@ function renderAnalysis(){
 }
 function specRows(arr){ return arr.map(function(x){return '<tr><td>'+x[0]+'</td><td class="mono">'+x[1]+'</td></tr>'}).join(''); }
 function setT(id,v){ var e=document.getElementById(id); if(e)e.textContent=v; }
+
+/* ════════ 期間查詢 ════════ */
+function dataYears(){
+  var ys={};
+  ['fuel','maintenance','mods','insurance'].forEach(function(k){ DB[k].forEach(function(r){ var d=pDate(r['日期']||r['起保日']||r['到期日']); if(d) ys[d.getFullYear()]=1; }); });
+  var now=new Date().getFullYear(); ys[now]=1;
+  return Object.keys(ys).map(Number).sort(function(a,b){return b-a});
+}
+function initPeriodSelectors(){
+  var sel=document.getElementById('q_year'); if(!sel) return;
+  var cur=sel.value;
+  sel.innerHTML='';
+  dataYears().forEach(function(y){ var o=document.createElement('option'); o.value=y; o.textContent=y+' 年'; sel.appendChild(o); });
+  if(cur && [].some.call(sel.options,function(o){return o.value===cur})) sel.value=cur;
+}
+function periodAgg(y,mo){ // mo: null=全年, 0-11=單月
+  var months=[]; if(mo===null){ for(var i=0;i<12;i++) months.push({y:y,m:i}); } else months.push({y:y,m:mo});
+  var fuel=0,maint=0,mod=0,km=0;
+  months.forEach(function(p){ var a=monthAgg(p.y,p.m); fuel+=a.fuel; maint+=a.maint; mod+=a.mod; km+=a.km; });
+  // 期間油耗：取期間內加油紀錄的相鄰里程段
+  var arr=DB.fuel.slice().filter(function(r){return n(r['里程'])>0&&n(r['公升'])>0}).sort(function(a,b){return n(a['里程'])-n(b['里程'])});
+  var inP=function(d){ if(!d)return false; if(d.getFullYear()!==y)return false; return mo===null||d.getMonth()===mo; };
+  var segs=[];
+  for(var i=1;i<arr.length;i++){ var d=pDate(arr[i]['日期']); if(!inP(d))continue; var dist=n(arr[i]['里程'])-n(arr[i-1]['里程']); var l=n(arr[i]['公升']); if(dist>0&&l>0&&dist<2000) segs.push(dist/l); }
+  var kpl=null; if(segs.length){ var s=0; segs.forEach(function(v){s+=v}); kpl=r1(s/segs.length); }
+  // 期間加油公升與次數
+  var liters=0,fills=0;
+  DB.fuel.forEach(function(r){ var d=pDate(r['日期']); if(inP(d)){ liters+=n(r['公升']); fills++; } });
+  return {fuel:fuel,maint:maint,mod:mod,total:fuel+maint+mod,km:km,kpl:kpl,liters:liters,fills:fills};
+}
+function renderPeriod(){
+  var ySel=document.getElementById('q_year'), mSel=document.getElementById('q_month');
+  if(!ySel||!ySel.value) return;
+  var y=parseInt(ySel.value,10);
+  var mo=mSel.value===''?null:parseInt(mSel.value,10);
+  var cur=periodAgg(y,mo);
+  // 前一期：單月→上個月；全年→前一年
+  var prev = mo===null ? periodAgg(y-1,null) : (function(){ var p=prevMonth(y,mo); return periodAgg(p.y,p.m); })();
+  var prevLabel = mo===null ? '較 '+(y-1)+' 年' : '較上月';
+  setT('q_total',fmt(cur.total)); setT('q_fuel',fmt(cur.fuel)); setT('q_mm',fmt(cur.maint+cur.mod)); setT('q_km',fmt(cur.km));
+  var el;
+  el=document.getElementById('q_totalCmp'); if(el) el.innerHTML=prevLabel+' '+growthHtml(cur.total,prev.total);
+  el=document.getElementById('q_fuelSub'); if(el) el.textContent=cur.fills+' 次加油 · '+r1(cur.liters)+' L';
+  el=document.getElementById('q_mmSub'); if(el) el.innerHTML=prevLabel+' '+growthHtml(cur.maint+cur.mod,prev.maint+prev.mod);
+  el=document.getElementById('q_kmCmp'); if(el) el.innerHTML=prevLabel+' '+growthHtml(cur.km,prev.km,true);
+  el=document.getElementById('q_extra');
+  if(el) el.textContent='期間平均油耗：'+(cur.kpl!==null?cur.kpl+' km/L':'資料不足')+'　·　每公里油費：'+(cur.km>0?'$'+r2(cur.fuel/cur.km):'—')+'　·　比較基準：'+(mo===null?(y-1)+' 全年':'前一個月');
+}
 
 /* ════════ 各分頁列表 ════════ */
 function renderFuel(){
