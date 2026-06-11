@@ -491,10 +491,10 @@ function calcReminders(){
     if(moC>0&&last.date){ dayR=Math.ceil((addMonths(last.date,moC)-today())/86400000); if(dayR<=0)over=true; else if(dayR<=dayA)due=true; }
     maint.push({item:item,level:over?'overdue':(due?'due':'ok'),kmR:kmR,dayR:dayR});
   });
-  // 保險：同險種只看「到期日最新」那張（舊保單已被續保即略過）
-  var latestByType={};
-  DB.insurance.forEach(function(r){ var exp=pDate(r['到期日']); if(!exp)return; var t=String(r['險種']||'').trim()||'未填險種'; if(!latestByType[t]||exp>latestByType[t].exp) latestByType[t]={exp:exp,r:r}; });
-  for(var t in latestByType){ var o=latestByType[t]; var dr=Math.ceil((o.exp-today())/86400000); ins.push({type:o.r['險種'],company:o.r['保險公司'],expire:o.r['到期日'],dayR:dr,level:dr<=0?'overdue':(dr<=insA?'due':'ok')}); }
+  // 保險：不分險種，只看「到期日最新」的那一張保單
+  var latest=null;
+  DB.insurance.forEach(function(r){ var exp=pDate(r['到期日']); if(!exp)return; if(!latest||exp>latest.exp) latest={exp:exp,r:r}; });
+  if(latest){ var dr=Math.ceil((latest.exp-today())/86400000); ins.push({type:latest.r['險種'],company:latest.r['保險公司'],expire:latest.r['到期日'],dayR:dr,level:dr<=0?'overdue':(dr<=insA?'due':'ok')}); }
   return {maint:maint,ins:ins};
 }
 function isEnabled(v){ return v===true||v==='TRUE'||v==='true'||v===1||v==='1'; }
